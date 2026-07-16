@@ -40,5 +40,9 @@ struct StatusBarView: View {
             variant: clock.variant,
             blinkColon: clock.blinkColon
         )
+        // Menu-bar ONLY: shift the ensemble down so the label rides inside the
+        // fixed 22pt status button (no top clip on unfocused displays). Settings
+        // exemplars render TimeGlyph without this nudge.
+        .offset(y: DesignTokens.statusItemGlyphNudge)
     }
 }

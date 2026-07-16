@@ -206,9 +206,9 @@ struct doubletimeTests {
     /// centers (each edge-center→edge-center quadrant is (w+h)/2 long
     /// regardless of aspect ratio).
     @Test(arguments: [
-        (0.25, CGPoint(x: 17, y: 7.5)),
-        (0.5, CGPoint(x: 8.5, y: 15)),
-        (0.75, CGPoint(x: 0, y: 7.5)),
+        (0.25, CGPoint(x: 19, y: 8)),
+        (0.5, CGPoint(x: 9.5, y: 16)),
+        (0.75, CGPoint(x: 0, y: 8)),
     ])
     @MainActor func perimeterQuarterLandsOnEdgeCenter(fraction: Double, expected: CGPoint) {
         let rect = CGRect(origin: .zero, size: DesignTokens.cellSize)
@@ -227,7 +227,7 @@ struct doubletimeTests {
             .trimmedPath(from: 0, to: 0.001).currentPoint
         #expect(start != nil)
         if let start {
-            #expect(abs(start.x - 8.5) < 0.15)
+            #expect(abs(start.x - 9.5) < 0.15)
             #expect(abs(start.y - 0) < 0.15)
         }
     }
@@ -237,5 +237,19 @@ struct doubletimeTests {
         let r = DesignTokens.cellCornerRadius
         let expected = 2 * (rect.width + rect.height) - 8 * r + 2 * .pi * r
         #expect(abs(CellPerimeter.perimeterLength(in: rect) - expected) < 0.001)
+    }
+
+    /// The indicator ring must draw fully inside the cell (its whole reason to
+    /// exist: clearing the zone label) and stay concentric, at every scale.
+    @Test(arguments: [1.0, 1.6] as [CGFloat])
+    @MainActor func indicatorRingStaysConcentricInsideCell(scale: CGFloat) {
+        let m = GlyphMetrics(scale: scale)
+        // Outer stroke edge sits indicatorExtraInset inside the cell edge (> 0 ⇒ no
+        // contact with the cell bounds or the label ink dipping past the top edge).
+        #expect(abs((m.indicatorInset - m.arcLineWidth / 2) - m.indicatorExtraInset) < 1e-9)
+        #expect(m.indicatorInset - m.arcLineWidth / 2 > 0)
+        // Concentric radius stays positive (the max(_, 0) floor is never hit).
+        #expect(m.indicatorCornerRadius > 0)
+        #expect(abs(m.indicatorCornerRadius - (m.cellCornerRadius - m.indicatorInset)) < 1e-9)
     }
 }

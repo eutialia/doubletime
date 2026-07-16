@@ -17,8 +17,11 @@ struct ZoneLabel: View {
         Text(text)
             .font(metrics.labelFont)
             .textCase(.uppercase)
-            .trackedCentered(metrics.labelTracking)
-            // Pin the line box tight so the 5pt line box does not balloon the
+            // Left-anchored: no leading-pad compensation (that exists only to
+            // optically center); the trailing tracking unit hangs invisibly off
+            // the right end.
+            .tracking(metrics.labelTracking)
+            // Pin the line box tight so the 5.5pt line box does not balloon the
             // overlay and float or clip the text on short bars.
             .frame(height: metrics.labelHeight)
             .foregroundStyle(.primary.opacity(dim ? DesignTokens.secondaryLabelOpacity

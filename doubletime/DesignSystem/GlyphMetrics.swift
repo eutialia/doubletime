@@ -23,10 +23,18 @@ struct GlyphMetrics {
     var cellCornerRadius: CGFloat { DesignTokens.cellCornerRadius * scale }
     var glyphSpacing: CGFloat { DesignTokens.glyphSpacing * scale }
     var labelCellGap: CGFloat { DesignTokens.labelCellGap * scale }
+    var labelLeadingInset: CGFloat { DesignTokens.labelLeadingInset * scale }
     var glyphHorizontalPadding: CGFloat { DesignTokens.glyphHorizontalPadding * scale }
     var trailingMinuteLeadingOffset: CGFloat { DesignTokens.trailingMinuteLeadingOffset * scale }
     /// Stroke width scales too — the web reference scales stroke via transform.
     var arcLineWidth: CGFloat { DesignTokens.arcLineWidth * scale }
+    var indicatorExtraInset: CGFloat { DesignTokens.indicatorExtraInset * scale }
+    /// The indicator path's inset from the cell bounds: half the stroke (a
+    /// stroke is centered on its path) plus the extra label-clearance inset, so
+    /// the OUTER stroke edge sits indicatorExtraInset inside the cell.
+    var indicatorInset: CGFloat { arcLineWidth / 2 + indicatorExtraInset }
+    /// Corner radius keeping the inset ring concentric with the cell's corners.
+    var indicatorCornerRadius: CGFloat { max(cellCornerRadius - indicatorInset, 0) }
     var segmentGap: CGFloat { DesignTokens.segmentGap * scale }
     var labelHeight: CGFloat { DesignTokens.labelHeight * scale }
 
@@ -37,7 +45,7 @@ struct GlyphMetrics {
     }
     var timeTracking: CGFloat { DesignTokens.timeTracking * scale }
     var labelFont: Font {
-        Font.system(size: DesignTokens.labelFontSize * scale, weight: .medium, design: .monospaced)
+        Font.system(size: DesignTokens.labelFontSize * scale, weight: .bold, design: .monospaced)
     }
     var labelTracking: CGFloat { DesignTokens.labelTracking * scale }
 }
