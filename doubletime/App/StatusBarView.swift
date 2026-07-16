@@ -11,6 +11,11 @@ struct StatusBarView: View {
     /// (an NSStatusBarButton never derives its length from SwiftUI content).
     var onWidthChange: (CGFloat) -> Void = { _ in }
 
+    // The status item's NSHostingView is the app's only always-alive SwiftUI
+    // context, so the Settings scene is opened from here (AppDelegate posts
+    // .openAppSettings from the AppKit menu item).
+    @Environment(\.openSettings) private var openSettings
+
     var body: some View {
         // Read systemZoneGeneration so a Mac-timezone change (which bumps it)
         // repaints a "System (auto)" primary immediately, not at the next tick.
@@ -26,6 +31,9 @@ struct StatusBarView: View {
         .fixedSize()
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width in
             onWidthChange(width)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAppSettings)) { _ in
+            openSettings()
         }
     }
 

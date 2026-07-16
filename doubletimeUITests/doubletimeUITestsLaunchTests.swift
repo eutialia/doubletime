@@ -20,10 +20,11 @@ final class doubletimeUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        // Regression: a degenerate invisible settings-opener window used to
+        // trip AppKit's update-constraints loop guard (NSGenericException →
+        // SIGTRAP) within ~1s of launch. Ensure the app survives past that.
+        sleep(3)
+        XCTAssertNotEqual(app.state, .notRunning, "app crashed shortly after launch")
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"
