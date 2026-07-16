@@ -12,7 +12,7 @@ struct SettingsRow<Control: View>: View {
     var caption: String? = nil
     /// Top-align the label with a tall control (e.g. the glyph-style cards).
     var alignTop: Bool = false
-    @ViewBuilder let control: () -> Control
+    @ViewBuilder let control: Control
 
     var body: some View {
         HStack(alignment: alignTop ? .top : .firstTextBaseline, spacing: 14) {
@@ -24,7 +24,7 @@ struct SettingsRow<Control: View>: View {
                 .padding(.top, alignTop ? 2 : 0)
 
             VStack(alignment: .leading, spacing: 6) {
-                control()
+                control
                 if let caption {
                     Text(caption)
                         .font(DesignTokens.settingsCaption)

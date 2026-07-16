@@ -50,13 +50,6 @@ struct GlyphMetrics {
     var labelTracking: CGFloat { DesignTokens.labelTracking * scale }
 }
 
-private struct GlyphMetricsKey: EnvironmentKey {
-    static let defaultValue = GlyphMetrics()
-}
-
 extension EnvironmentValues {
-    var glyphMetrics: GlyphMetrics {
-        get { self[GlyphMetricsKey.self] }
-        set { self[GlyphMetricsKey.self] = newValue }
-    }
+    @Entry var glyphMetrics = GlyphMetrics()
 }

@@ -16,11 +16,11 @@ struct GlyphChip<Content: View>: View {
     var scale: CGFloat = 1.6
     /// The chip is exactly this tall and fills its width.
     let fixedHeight: CGFloat
-    @ViewBuilder let content: () -> Content
+    @ViewBuilder let content: Content
 
     var body: some View {
         let metrics = GlyphMetrics(scale: scale)
-        content()
+        content
             .environment(\.glyphMetrics, metrics)
             // The label overlays ABOVE the glyph's layout box; bias the centered
             // content down by half that extent so the ensemble visually centers

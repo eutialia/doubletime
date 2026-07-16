@@ -27,8 +27,7 @@ struct TimezoneRow: View {
         if remainder == 0 {
             return "\(sign)\(abs(hours))h"
         }
-        let padded = remainder < 10 ? "0\(remainder)" : "\(remainder)"
-        return "\(sign)\(abs(hours)):\(padded)"
+        return "\(sign)\(abs(hours)):\(remainder.formatted(.number.precision(.integerLength(2))))"
     }
 
     var body: some View {

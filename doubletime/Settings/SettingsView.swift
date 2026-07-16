@@ -13,11 +13,13 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            SettingsPane(clock: clock)
-                .tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
+            Tab("Settings", systemImage: "slider.horizontal.3") {
+                SettingsPane(clock: clock)
+            }
 
-            AboutPane()
-                .tabItem { Label("About", systemImage: "info.circle") }
+            Tab("About", systemImage: "info.circle") {
+                AboutPane()
+            }
         }
         .frame(width: DesignTokens.settingsWidth)
         .background(DesignTokens.canvas)

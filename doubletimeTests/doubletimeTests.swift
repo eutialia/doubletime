@@ -210,26 +210,20 @@ struct doubletimeTests {
         (0.5, CGPoint(x: 9.5, y: 16)),
         (0.75, CGPoint(x: 0, y: 8)),
     ])
-    @MainActor func perimeterQuarterLandsOnEdgeCenter(fraction: Double, expected: CGPoint) {
+    @MainActor func perimeterQuarterLandsOnEdgeCenter(fraction: Double, expected: CGPoint) throws {
         let rect = CGRect(origin: .zero, size: DesignTokens.cellSize)
         let path = CellPerimeter().path(in: rect)
-        let end = path.trimmedPath(from: 0, to: fraction).currentPoint
-        #expect(end != nil)
-        if let end {
-            #expect(abs(end.x - expected.x) < 0.05)
-            #expect(abs(end.y - expected.y) < 0.05)
-        }
+        let end = try #require(path.trimmedPath(from: 0, to: fraction).currentPoint)
+        #expect(abs(end.x - expected.x) < 0.05)
+        #expect(abs(end.y - expected.y) < 0.05)
     }
 
-    @Test @MainActor func perimeterStartsAtTopCenter() {
+    @Test @MainActor func perimeterStartsAtTopCenter() throws {
         let rect = CGRect(origin: .zero, size: DesignTokens.cellSize)
-        let start = CellPerimeter().path(in: rect)
-            .trimmedPath(from: 0, to: 0.001).currentPoint
-        #expect(start != nil)
-        if let start {
-            #expect(abs(start.x - 9.5) < 0.15)
-            #expect(abs(start.y - 0) < 0.15)
-        }
+        let start = try #require(CellPerimeter().path(in: rect)
+            .trimmedPath(from: 0, to: 0.001).currentPoint)
+        #expect(abs(start.x - 9.5) < 0.15)
+        #expect(abs(start.y - 0) < 0.15)
     }
 
     @Test @MainActor func perimeterLengthMatchesFormula() {

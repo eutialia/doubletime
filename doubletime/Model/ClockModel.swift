@@ -8,7 +8,10 @@ import SwiftUI
 @Observable @MainActor
 final class ClockModel {
     /// AM/PM period of a wall-clock hour, used to tint 12-hour cells.
-    enum Period {
+    /// nonisolated: a pure value type — inheriting the class's MainActor
+    /// isolation would bind the synthesized Equatable to the main actor
+    /// (a Swift 6 error when compared from nonisolated contexts like tests).
+    nonisolated enum Period {
         case am
         case pm
     }
@@ -249,10 +252,16 @@ final class ClockModel {
         )
     }
 
-    /// Zero-padded 12-hour hour: `((n + 11) % 12) + 1`. 00→"12", 12→"12", 13→"01".
+    /// Zero-padded 12-hour hour via the same verbatim pipeline as `hour`. The
+    /// one-based twelve-hour clock maps 00→"12", 12→"12", 13→"01".
     nonisolated static func hour12(for tz: TimeZone, at date: Date) -> String {
-        let hh12 = ((hourValue(for: tz, at: date) + 11) % 12) + 1
-        return String(format: "%02d", hh12)
+        date.formatted(
+            Date.VerbatimFormatStyle(
+                format: "\(hour: .twoDigits(clock: .twelveHour, hourCycle: .oneBased))",
+                timeZone: tz,
+                calendar: gregorian
+            )
+        )
     }
 
     /// AM before noon, PM from noon — the encoding that replaces AM/PM text.
