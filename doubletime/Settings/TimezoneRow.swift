@@ -5,25 +5,22 @@
 
 import SwiftUI
 
+/// One row in the zone-picker popover: city + IANA id on the left, the zone's
+/// current time and signed offset from the reference zone on the right.
 struct TimezoneRow: View {
     let option: TimezoneOption
     let now: Date
     let referenceTimezone: TimeZone
 
-    private var timezone: TimeZone {
-        TimeZone(identifier: option.id) ?? .current
-    }
-
     private var timeString: String {
-        let h = ClockModel.hour(for: timezone, at: now)
-        let m = ClockModel.minute(for: timezone, at: now)
+        let h = ClockModel.hour(for: option.timezone, at: now)
+        let m = ClockModel.minute(for: option.timezone, at: now)
         return "\(h):\(m)"
     }
 
     private var offsetString: String {
-        let deltaSeconds = timezone.secondsFromGMT(for: now) - referenceTimezone.secondsFromGMT(for: now)
-        let minutes = deltaSeconds / 60
-        if minutes == 0 { return "local" }
+        let minutes = ClockModel.offsetMinutes(from: option.timezone, to: referenceTimezone, at: now)
+        if minutes == 0 { return "same" }
         let hours = minutes / 60
         let remainder = abs(minutes % 60)
         let sign = minutes >= 0 ? "+" : "−"
@@ -38,22 +35,23 @@ struct TimezoneRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(option.city)
-                    .font(.system(.body, design: .rounded))
+                    .font(DesignTokens.settingsBody)
+                    .foregroundStyle(DesignTokens.textStrong)
                 Text(option.id)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(DesignTokens.settingsFootnote)
+                    .foregroundStyle(DesignTokens.textMuted)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 1) {
                 Text(timeString)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .contentTransition(.numericText())
+                    .font(DesignTokens.settingsMono)
+                    .foregroundStyle(DesignTokens.textBody)
                 Text(offsetString)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(DesignTokens.settingsMonoCaption)
+                    .foregroundStyle(DesignTokens.textFaint)
             }
         }
         .padding(.vertical, 3)
+        .contentShape(Rectangle())
     }
 }
