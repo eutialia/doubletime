@@ -21,8 +21,6 @@ struct TimeGlyph: View {
     var variant: GlyphVariant = .arc
     var blinkColon: Bool = false
 
-    @Environment(\.glyphMetrics) private var metrics
-
     var body: some View {
         let sweep = ClockModel.anchoredSweep(secondary: secondaryTimezone, primary: primaryTimezone, at: now)
         let secondaryHour = digits(for: secondaryTimezone)
@@ -33,16 +31,16 @@ struct TimeGlyph: View {
 
         // .center: digits are centered inside the 16pt cells and the 11pt
         // trailing :mm centers against them (web uses flex align center).
-        HStack(alignment: .center, spacing: metrics.glyphSpacing) {
+        HStack(alignment: .center, spacing: DesignTokens.glyphSpacing) {
             HourCell(label: secondaryLabel, hour: secondaryHour,
                      fraction: sweep.fraction, clockwise: sweep.clockwise,
                      variant: variant, tone: .secondary, period: secondaryPeriod)
             HourCell(label: primaryLabel, hour: primaryHour,
                      fraction: 0, tone: .primary, period: primaryPeriod)
             TrailingMinute(minute: primaryMinute, blink: blinkColon)
-                .padding(.leading, metrics.trailingMinuteLeadingOffset)
+                .padding(.leading, DesignTokens.trailingMinuteLeadingOffset)
         }
-        .padding(.horizontal, metrics.glyphHorizontalPadding)
+        .padding(.horizontal, DesignTokens.glyphHorizontalPadding)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(secondaryLabel) \(secondaryHour)\(spell(secondaryPeriod)), "

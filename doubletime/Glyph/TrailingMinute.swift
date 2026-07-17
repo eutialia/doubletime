@@ -11,15 +11,13 @@ struct TrailingMinute: View {
     let minute: String
     var blink: Bool = false
 
-    @Environment(\.glyphMetrics) private var metrics
-
     var body: some View {
         HStack(spacing: 0) {
             colon
             Text(minute)
         }
-        .font(metrics.timeFont)
-        .tracking(metrics.timeTracking)
+        .font(DesignTokens.timeFont)
+        .tracking(DesignTokens.timeTracking)
         .foregroundStyle(.primary.opacity(DesignTokens.inkOpacity))
     }
 

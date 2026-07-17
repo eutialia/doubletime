@@ -28,22 +28,29 @@ enum DesignTokens {
     /// so it aligns with the cell's visual left mass rather than the bounding box.
     static let labelLeadingInset: CGFloat = 1
     /// Gap between a zone label's bottom and its cell's top (label is an overlay).
-    /// Mirrors the canon token `--dt-label-gap` — a zero-valued token is still a
-    /// live design knob, not dead code; a future non-zero canon value flips this
-    /// one number. Zero: the label frame centers a larger intrinsic 5.5pt line
-    /// box, so the cap ink already lands a sub-point optical gap above the cell —
-    /// an explicit gap would float the label off. (Measured optical gap ≈ 0.25pt.)
-    static let labelCellGap: CGFloat = 0
+    /// Mirrors the canon token `--dt-label-gap`. At 0 the label's baseline ink
+    /// dipped ~0.25pt INTO the cell, reading as attached to the block; 0.75
+    /// floats the ink a visible ~0.5pt clear of the cell top (1 device px on
+    /// retina) so the label reads as detached. Every added point here costs one
+    /// point of statusItemGlyphNudge — the two are re-measured together.
+    static let labelCellGap: CGFloat = 0.75
 
-    /// Menu-bar-ONLY vertical nudge for the whole glyph ensemble. A status item is
+    /// Fixed height of a macOS status bar button. The glyph ensemble must fit
+    /// inside it with zero overflow (see statusItemGlyphNudge); GlyphChip
+    /// reproduces this exact strip so settings exemplars match the menu bar.
+    static let statusItemHeight: CGFloat = 22
+
+    /// Menu-bar vertical nudge for the whole glyph ensemble. A status item is
     /// mirrored to every display and macOS clips anything that overflows the fixed
-    /// 22pt status button, so the ensemble (label 2.5 + gap 0 + cell 16 = 18.5)
-    /// must fit inside 22 with zero overflow. Shifting down 0.85 lands the 5.5pt
-    /// label cap ink ≈0.25pt below the container top (no clip) while leaving the
-    /// digits an imperceptible 0.85pt below the button center. (Both pixel-verified
-    /// at 8x.)
-    /// Settings exemplars are NOT nudged (GlyphChip self-centers the ensemble).
-    static let statusItemGlyphNudge: CGFloat = 0.85
+    /// 22pt status button, so the ensemble (label 2.5 + gap 0.75 + cell 16 = 19.25)
+    /// must fit inside 22 with zero overflow. Shifting down 1.75 lands the 5.5pt
+    /// label cap ink ≈0.25pt below the container top (no clip) with the cell's
+    /// bottom edge still 1.25pt clear; the digits ride 1.75pt below the button center —
+    /// the visual ink mass (label top → cell bottom) stays centered. (Pixel-
+    /// verified at 16x; re-measure whenever labelCellGap moves — each point of
+    /// gap costs a point of nudge.) GlyphChip applies the same nudge — it renders
+    /// the status item composition verbatim.
+    static let statusItemGlyphNudge: CGFloat = 1.75
     /// Outer horizontal padding around the whole glyph.
     static let glyphHorizontalPadding: CGFloat = 1
     /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
@@ -53,35 +60,38 @@ enum DesignTokens {
     static let arcLineWidth: CGFloat = 1.2
     /// Extra concentric inset of the indicator ring beyond the flush
     /// half-stroke inset (which alone puts the outer stroke edge on the cell
-    /// bounds). The zone label's line-box bottom sits ON the cell top, so its
-    /// baseline ink dips ~0.15pt below the cell's top edge — a merely-flush
-    /// ring still grazes the label at the top-left. 0.35 is the pixel-measured
-    /// minimum that leaves zero overlapping ink pixels and ≥0.25pt solid-ink
-    /// clearance, while the ring stays concentric with the cell's corners.
-    /// Coupled to `labelCellGap == 0`: if the gap ever goes positive the label
-    /// lifts off the cell top and this extra inset can shrink or drop to zero.
+    /// bounds). Historically this cleared the zone label's baseline ink, which
+    /// dipped below the cell's top edge when `labelCellGap` was 0; with the
+    /// label now floated clear of the cell the inset no longer binds, and is
+    /// kept purely as the ring's look — inside the cell, concentric with its
+    /// corners. It could drop to zero for a flush, slightly larger ring.
     static let indicatorExtraInset: CGFloat = 0.35
+    /// The indicator path's inset from the cell bounds: half the stroke (a
+    /// stroke is centered on its path) plus the extra label-clearance inset, so
+    /// the OUTER stroke edge sits indicatorExtraInset inside the cell.
+    static let indicatorInset: CGFloat = arcLineWidth / 2 + indicatorExtraInset
+    /// Corner radius keeping the inset ring concentric with the cell's corners.
+    static let indicatorCornerRadius: CGFloat = max(cellCornerRadius - indicatorInset, 0)
     /// Gap between segmented ticks (must stay legible at menu-bar scale).
     static let segmentGap: CGFloat = 3
 
     // MARK: Typography
 
     /// Time digits (HH and :mm), 11pt medium. monospacedDigit is mandatory so
-    /// the glyph never jitters as digits change. The Font itself is built by
-    /// GlyphMetrics (which scales this base size for showcase surfaces).
-    static let timeFontSize: CGFloat = 11
+    /// the glyph never jitters as digits change.
+    static let timeFont = Font.system(size: 11, weight: .medium).monospacedDigit()
     static let timeTracking: CGFloat = 0.2
 
-    /// Zone label: 5.5pt bold monospaced — a deliberate menu-bar-only
-    /// exception. Font built by GlyphMetrics.
-    static let labelFontSize: CGFloat = 5.5
+    /// Zone label: 5.5pt bold monospaced — a deliberate menu-bar-only exception.
+    static let labelFont = Font.system(size: 5.5, weight: .bold, design: .monospaced)
     static let labelTracking: CGFloat = 0.5
     /// Pinned line box for the label overlay — kept well tighter than the 5.5pt
     /// line box so the overlay does not balloon or float the text, and the
     /// ensemble fits the 22pt status button. The sub-cap-height box seats the cap
-    /// ink low (≈0.25pt optical gap above the cell) so the whole ensemble needs
-    /// only a small down-nudge to clear the container top — measured, not guessed
-    /// (a taller box floats the cap up and forces a larger nudge → digits sink).
+    /// ink low, minimizing the down-nudge needed to clear the container top —
+    /// measured, not guessed (a taller box floats the cap up and forces a larger
+    /// nudge → digits sink). The visible detachment from the cell comes from
+    /// labelCellGap, not from this box.
     static let labelHeight: CGFloat = 2.5
 
     // MARK: Ink alphas (applied to Color.primary; identical across appearance)

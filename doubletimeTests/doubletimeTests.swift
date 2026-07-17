@@ -234,16 +234,156 @@ struct doubletimeTests {
     }
 
     /// The indicator ring must draw fully inside the cell (its whole reason to
-    /// exist: clearing the zone label) and stay concentric, at every scale.
-    @Test(arguments: [1.0, 1.6] as [CGFloat])
-    @MainActor func indicatorRingStaysConcentricInsideCell(scale: CGFloat) {
-        let m = GlyphMetrics(scale: scale)
+    /// exist: clearing the zone label) and stay concentric.
+    @Test @MainActor func indicatorRingStaysConcentricInsideCell() {
         // Outer stroke edge sits indicatorExtraInset inside the cell edge (> 0 ⇒ no
         // contact with the cell bounds or the label ink dipping past the top edge).
-        #expect(abs((m.indicatorInset - m.arcLineWidth / 2) - m.indicatorExtraInset) < 1e-9)
-        #expect(m.indicatorInset - m.arcLineWidth / 2 > 0)
+        #expect(abs((DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2)
+                    - DesignTokens.indicatorExtraInset) < 1e-9)
+        #expect(DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2 > 0)
         // Concentric radius stays positive (the max(_, 0) floor is never hit).
-        #expect(m.indicatorCornerRadius > 0)
-        #expect(abs(m.indicatorCornerRadius - (m.cellCornerRadius - m.indicatorInset)) < 1e-9)
+        #expect(DesignTokens.indicatorCornerRadius > 0)
+        #expect(abs(DesignTokens.indicatorCornerRadius
+                    - (DesignTokens.cellCornerRadius - DesignTokens.indicatorInset)) < 1e-9)
+    }
+
+    /// Exemplar glyph shared by the rendering tests below.
+    private var exemplarGlyph: some View {
+        TimeGlyph(
+            secondaryLabel: "PDT", secondaryTimezone: timezone("America/Los_Angeles"),
+            primaryLabel: "IST", primaryTimezone: timezone("Asia/Kolkata"),
+            now: Self.reference, variant: .arc
+        )
+    }
+
+    /// Regression guard for the settings exemplars: GlyphChip shows whatever
+    /// StatusItemRaster.rasterize produces, so that production path must yield
+    /// exactly the canonical status strip (View.statusItemStrip) at the chip's
+    /// pixel density — catching rasterize() drifting from the shared
+    /// composition (wrong scale math, dropped or extra modifiers).
+    @Test @MainActor func statusItemRasterMatchesCanonicalStrip() throws {
+        let pixelScale: CGFloat = 2 * 1.6  // retina display × chip magnification
+        let raster = StatusItemRaster(scale: 1.6) { exemplarGlyph }
+        let produced = try #require(raster.rasterize(pixelScale: pixelScale))
+        // Pt geometry: the raster is exactly the 22pt status strip.
+        #expect(produced.size.height == DesignTokens.statusItemHeight)
+        #expect(produced.size.width > 0)
+
+        let reference = ImageRenderer(content: exemplarGlyph.statusItemStrip())
+        reference.scale = pixelScale
+        let referenceImage = try #require(reference.nsImage)
+        #expect(produced.tiffRepresentation == referenceImage.tiffRepresentation)
+    }
+
+    /// The documented core invariant, verified on real pixels: the zone label's
+    /// ink must float clear of the cell top (labelCellGap's whole purpose — the
+    /// label must read as detached from the hour block) and therefore never
+    /// merge with the indicator ring's ink (a full-sweep arc is the worst case —
+    /// the whole top edge is stroked). Scans every column of a rendered
+    /// secondary cell.
+    @Test @MainActor func labelInkFloatsClearOfCellAndIndicator() throws {
+        let padding: CGFloat = 8
+        let scan = try RasterScan(
+            of: HourCell(label: "PDT", hour: "09", fraction: 1, variant: .arc, tone: .secondary)
+                .padding(padding)
+                .background(Color(hex: 0x2D2D2D))
+                .environment(\.colorScheme, .dark),
+            compositedOn: 0x2D
+        )
+
+        let cellTop = Int(padding * RasterScan.pixelScale)
+        // The label's ink seats ~0.25pt below its line-box bottom (which sits
+        // labelCellGap above the cell top), and antialiasing can eat another
+        // ~0.25pt — the remainder of the gap must survive as visible clearance.
+        let requiredClearance = Int((DesignTokens.labelCellGap - 0.5) * RasterScan.pixelScale)
+        #expect(requiredClearance > 0, "labelCellGap too small to ever read as detached")
+        // Scan past the ring band's inner edge; deeper is digit territory.
+        let scanBottom = cellTop
+            + Int((DesignTokens.indicatorInset + DesignTokens.arcLineWidth) * RasterScan.pixelScale)
+        var labelInkBottom = -1  // deepest ink belonging to a run that began above the cell
+        for x in 0..<scan.width {
+            var previousWasInk = false
+            var inkStart = 0
+            for y in 0..<min(scanBottom, scan.height) {
+                let ink = scan.isInk(x, y)
+                if ink && !previousWasInk { inkStart = y }
+                if ink, inkStart < cellTop {
+                    labelInkBottom = max(labelInkBottom, y)
+                }
+                previousWasInk = ink
+            }
+        }
+        #expect(labelInkBottom >= 0, "no label ink found above the cell")
+        #expect(labelInkBottom < cellTop - requiredClearance,
+                "label ink crowds the cell top — reads as attached to the block")
+    }
+
+    /// The ensemble (label + gap + cell) must fit the fixed 22pt status button
+    /// with zero overflow — macOS clips status items on every mirrored display.
+    /// labelCellGap and statusItemGlyphNudge are coupled; this catches either
+    /// drifting without the other being re-measured.
+    @Test @MainActor func ensembleFitsInsideStatusStrip() throws {
+        let scan = try RasterScan(of: exemplarGlyph.statusItemStrip())
+
+        func rowHasInk(_ y: Int) -> Bool {
+            (0..<scan.width).contains { scan.isInk($0, y) }
+        }
+
+        let firstInkRow = try #require((0..<scan.height).first(where: rowHasInk))
+        let lastInkRow = try #require((0..<scan.height).reversed().first(where: rowHasInk))
+        // Ink must not touch the strip edges (a touching row means clipping).
+        #expect(firstInkRow > 0, "label ink clips at the status button top")
+        #expect(lastInkRow < scan.height - 1, "cell ink clips at the status button bottom")
+    }
+}
+
+/// Rasterizes a view once and answers "is this pixel dense ink?" for the
+/// pixel-scanning tests. The ink threshold is DERIVED from DesignTokens —
+/// midway between the brightest chip-fill alpha and the dimmest ink alpha
+/// (secondary label / dim ring mark) — so re-tuned opacities can't silently
+/// blind the scans.
+@MainActor private struct RasterScan {
+    /// Rendering density shared by all scans (16 subpixels per point).
+    static let pixelScale: CGFloat = 16
+
+    let width: Int
+    let height: Int
+    private let data: Data
+    private let bytesPerRow: Int
+    private let bytesPerPixel: Int
+    /// Opaque backdrop the view was composited onto; nil ⇒ transparent
+    /// background, ink is judged by the alpha channel instead of luminance.
+    private let background: Int?
+
+    init(of view: some View, compositedOn background: Int? = nil) throws {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = Self.pixelScale
+        let image = try #require(renderer.cgImage)
+        width = image.width
+        height = image.height
+        data = try #require(image.dataProvider?.data as Data?)
+        bytesPerRow = image.bytesPerRow
+        bytesPerPixel = image.bitsPerPixel / 8
+        self.background = background
+    }
+
+    /// Alpha midway between the faint cell fill and the dimmest dense ink.
+    private var inkAlphaThreshold: Double {
+        let fill = DesignTokens.chipFillAlpha(isPrimary: false, colorScheme: .dark)
+        let ink = min(DesignTokens.secondaryLabelOpacity,
+                      DesignTokens.markOpacity(isDim: true, colorScheme: .dark))
+        return (fill + ink) / 2
+    }
+
+    /// True when the pixel carries dense ink (zone label, digits, or the
+    /// indicator ring) rather than background or the faint cell fill.
+    func isInk(_ x: Int, _ y: Int) -> Bool {
+        let offset = y * bytesPerRow + x * bytesPerPixel
+        if let background {
+            // White ink at alpha a over gray b has luminance b + a(255 − b).
+            let luminance = (Int(data[offset]) + Int(data[offset + 1]) + Int(data[offset + 2])) / 3
+            return Double(luminance) > Double(background) + inkAlphaThreshold * Double(255 - background)
+        }
+        return Double(data[offset + 3]) > inkAlphaThreshold * 255
     }
 }
