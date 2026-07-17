@@ -28,7 +28,7 @@ struct AboutPane: View {
                 .foregroundStyle(DesignTokens.textMuted)
                 .padding(.top, 4)
 
-            Text("© 2026 · MIT License")
+            Text("© 2026 eutialia · PolyForm Noncommercial 1.0.0")
                 .font(DesignTokens.settingsCaption)
                 .foregroundStyle(DesignTokens.textFaint)
                 .padding(.top, 18)
