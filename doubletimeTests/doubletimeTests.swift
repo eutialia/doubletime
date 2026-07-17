@@ -233,14 +233,14 @@ struct doubletimeTests {
         #expect(abs(CellPerimeter.perimeterLength(in: rect) - expected) < 0.001)
     }
 
-    /// The indicator ring must draw fully inside the cell (its whole reason to
-    /// exist: clearing the zone label) and stay concentric.
+    /// The indicator ring must draw inside (or flush with) the cell bounds —
+    /// never past them, where macOS would clip it — and stay concentric.
     @Test @MainActor func indicatorRingStaysConcentricInsideCell() {
-        // Outer stroke edge sits indicatorExtraInset inside the cell edge (> 0 ⇒ no
-        // contact with the cell bounds or the label ink dipping past the top edge).
+        // Outer stroke edge sits indicatorExtraInset inside the cell edge (≥ 0
+        // ⇒ the stroke never escapes the cell bounds; 0 = flush).
         #expect(abs((DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2)
                     - DesignTokens.indicatorExtraInset) < 1e-9)
-        #expect(DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2 > 0)
+        #expect(DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2 >= 0)
         // Concentric radius stays positive (the max(_, 0) floor is never hit).
         #expect(DesignTokens.indicatorCornerRadius > 0)
         #expect(abs(DesignTokens.indicatorCornerRadius

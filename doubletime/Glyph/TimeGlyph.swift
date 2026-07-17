@@ -29,7 +29,7 @@ struct TimeGlyph: View {
         let secondaryPeriod = hour12 ? ClockModel.period(for: secondaryTimezone, at: now) : nil
         let primaryPeriod = hour12 ? ClockModel.period(for: primaryTimezone, at: now) : nil
 
-        // .center: digits are centered inside the 16pt cells and the 11pt
+        // .center: digits are centered inside the 16pt cells and the 10pt
         // trailing :mm centers against them (web uses flex align center).
         HStack(alignment: .center, spacing: DesignTokens.glyphSpacing) {
             HourCell(label: secondaryLabel, hour: secondaryHour,

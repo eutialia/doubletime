@@ -19,7 +19,7 @@ enum DesignTokens {
     /// Fixed hour-cell footprint. THE CORE INVARIANT: indicators draw
     /// absolutely on top of the cell and never change its outer size.
     static let cellSize = CGSize(width: 19, height: 16)
-    static let cellCornerRadius: CGFloat = 3
+    static let cellCornerRadius: CGFloat = 3.5
 
     /// Gap between cells and between the primary cell and the trailing minute.
     static let glyphSpacing: CGFloat = 3.5
@@ -60,15 +60,13 @@ enum DesignTokens {
     static let arcLineWidth: CGFloat = 1.2
     /// Extra concentric inset of the indicator ring beyond the flush
     /// half-stroke inset (which alone puts the outer stroke edge on the cell
-    /// bounds). Historically this cleared the zone label's baseline ink, which
-    /// dipped below the cell's top edge when `labelCellGap` was 0; with the
-    /// label now floated clear of the cell the inset no longer binds, and is
-    /// kept purely as the ring's look — inside the cell, concentric with its
-    /// corners. It could drop to zero for a flush, slightly larger ring.
-    static let indicatorExtraInset: CGFloat = 0.35
+    /// bounds). Zero = flush ring: the label floats clear of the cell
+    /// (labelCellGap), so no label-clearance inset is needed, and flush buys
+    /// the digits maximum interior clearance from the ring.
+    static let indicatorExtraInset: CGFloat = 0
     /// The indicator path's inset from the cell bounds: half the stroke (a
-    /// stroke is centered on its path) plus the extra label-clearance inset, so
-    /// the OUTER stroke edge sits indicatorExtraInset inside the cell.
+    /// stroke is centered on its path) plus any extra inset, so the OUTER
+    /// stroke edge sits exactly indicatorExtraInset inside the cell.
     static let indicatorInset: CGFloat = arcLineWidth / 2 + indicatorExtraInset
     /// Corner radius keeping the inset ring concentric with the cell's corners.
     static let indicatorCornerRadius: CGFloat = max(cellCornerRadius - indicatorInset, 0)
@@ -77,9 +75,11 @@ enum DesignTokens {
 
     // MARK: Typography
 
-    /// Time digits (HH and :mm), 11pt medium. monospacedDigit is mandatory so
-    /// the glyph never jitters as digits change.
-    static let timeFont = Font.system(size: 11, weight: .medium).monospacedDigit()
+    /// Time digits (HH and :mm), 10pt medium. monospacedDigit is mandatory so
+    /// the glyph never jitters as digits change. 10pt (down from 11) keeps
+    /// ~40% more side air inside the fixed 19×16 cell — the chip reads as a
+    /// container with padding rather than a box hugging its ink.
+    static let timeFont = Font.system(size: 10, weight: .medium).monospacedDigit()
     static let timeTracking: CGFloat = 0.2
 
     /// Zone label: 5.5pt bold monospaced — a deliberate menu-bar-only exception.
@@ -105,13 +105,15 @@ enum DesignTokens {
 
     // MARK: Appearance-dependent glyph alphas / colors
 
-    /// 24-hour chip fill alpha on `Color.primary`.
+    /// 24-hour chip fill alpha on `Color.primary`. The primary/secondary gap is
+    /// deliberately wide (≈4.5×) — fill contrast is the ONLY hierarchy channel
+    /// (digit ink is identical on both cells), so it must read at a glance.
     static func chipFillAlpha(isPrimary: Bool, colorScheme: ColorScheme) -> Double {
         switch (isPrimary, colorScheme == .light) {
-        case (true, false): 0.26
-        case (true, true): 0.18
-        case (false, false): 0.09
-        case (false, true): 0.06
+        case (true, false): 0.32
+        case (true, true): 0.22
+        case (false, false): 0.07
+        case (false, true): 0.05
         }
     }
 
