@@ -75,11 +75,11 @@ enum DesignTokens {
 
     // MARK: Typography
 
-    /// Time digits (HH and :mm), 10pt medium. monospacedDigit is mandatory so
+    /// Time digits (HH and :mm), 10pt regular. monospacedDigit is mandatory so
     /// the glyph never jitters as digits change. 10pt (down from 11) keeps
     /// ~40% more side air inside the fixed 19×16 cell — the chip reads as a
     /// container with padding rather than a box hugging its ink.
-    static let timeFont = Font.system(size: 10, weight: .medium).monospacedDigit()
+    static let timeFont = Font.system(size: 10, weight: .regular).monospacedDigit()
     static let timeTracking: CGFloat = 0.2
 
     /// Zone label: 5.5pt bold monospaced — a deliberate menu-bar-only exception.
