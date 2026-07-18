@@ -3,13 +3,17 @@
 //  doubletime
 //
 
+import AppKit
+import ServiceManagement
 import SwiftUI
 
 /// The "Settings" tab: immediate-apply rows for the two zones, time format,
-/// glyph style, and the blinking colon. There is no Apply/Cancel — every change
-/// hits ClockModel directly and the real menu bar is the live preview.
+/// glyph style, the blinking colon, and launch at login. There is no
+/// Apply/Cancel — every change hits ClockModel directly and the real menu bar
+/// is the live preview.
 struct SettingsPane: View {
     @Bindable var clock: ClockModel
+    @State private var loginItem = LoginItemModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -79,9 +83,45 @@ struct SettingsPane: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
+
+            SettingsDivider()
+
+            SettingsRow(
+                label: "Launch at login",
+                caption: "macOS puts the clock back in the menu bar after a restart. You can also manage this in System Settings under Login Items."
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Launch at login", isOn: $loginItem.isEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(!LoginItemModel.canRegister)
+
+                    if loginItem.status == .requiresApproval {
+                        HStack(spacing: 8) {
+                            Text("Switched off in the system's Login Items.")
+                                .font(DesignTokens.settingsCaption)
+                                .foregroundStyle(DesignTokens.textMuted)
+                            Button("Open Login Items…") {
+                                LoginItemModel.openSystemSettings()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+
+                    if !LoginItemModel.canRegister {
+                        Text("Unavailable in debug builds.")
+                            .font(DesignTokens.settingsFootnote)
+                            .foregroundStyle(DesignTokens.textFaint)
+                    }
+                }
+            }
         }
         .padding(EdgeInsets(top: 8, leading: 28, bottom: 22, trailing: 28))
         .frame(width: DesignTokens.settingsWidth, alignment: .leading)
         .background(DesignTokens.canvas)
+        .onAppear { loginItem.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            loginItem.refresh()
+        }
     }
 }
