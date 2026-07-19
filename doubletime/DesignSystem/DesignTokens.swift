@@ -55,6 +55,13 @@ enum DesignTokens {
     static let glyphHorizontalPadding: CGFloat = 1
     /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
     static let trailingMinuteLeadingOffset: CGFloat = -1
+    /// Horizontal outset of the hovered minute's card past the `:mm` text box.
+    /// The card is drawn as a background (never layout) so the glyph width —
+    /// and therefore the status item length — cannot change on hover.
+    static let minuteCardOutset: CGFloat = 1.5
+    /// Full duration of the trailing-minute flip (the two half-turns overlap,
+    /// meeting edge-on at the midpoint).
+    static let minuteFlipDuration: Double = 0.3
 
     /// Clock-face arc / segment stroke.
     static let arcLineWidth: CGFloat = 1.2
