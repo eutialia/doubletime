@@ -6,20 +6,28 @@
 import SwiftUI
 
 /// The trailing `:mm` — the PRIMARY minute, except while the status item is
-/// hovered over a sub-hour pair (`carded`), when the digits roll — like a
-/// split-flap line — to the SECONDARY minute over a chip-fill card. The card
-/// fades in and persists for the whole hover: it is the "you're reading the
-/// other zone" cue, not just a transition effect. The colon sits outside the
-/// roll (a separator never animates) and can hide every other second (opt-in
-/// blink) at opacity 0 so the glyph width never changes.
+/// hovered over a sub-hour pair (`carded`), when the digits roll, odometer
+/// style, to the SECONDARY minute over a chip-fill card. The card fades in,
+/// sits behind the digits ONLY (never the colon), and persists for the whole
+/// hover: it is the "you're reading the other zone" cue, not just a transition
+/// effect. The colon can hide every other second (opt-in blink) at opacity 0
+/// so the glyph width never changes.
+///
+/// The digits are ONE always-present Text swapped via contentTransition —
+/// deliberately not conditional view identities with enter/exit transitions:
+/// macOS renders status items on non-focused displays through replica windows,
+/// and transition/clip machinery has been observed to render empty there. A
+/// plain Text with a content transition uses the same rendering path as every
+/// other glyph run, which replicas mirror correctly.
 struct TrailingMinute: View {
-    let minute: String
+    let primaryMinute: String
+    let secondaryMinute: String
     var blink: Bool = false
     /// True while showing the secondary minute (rolls the digits, fades the card in).
     var carded: Bool = false
     /// Roll direction: true when the secondary zone is ahead of the primary
-    /// (anchoredSweep clockwise) — a later time rolls up like an advancing
-    /// counter, an earlier one rolls down. Un-carding rolls back the way it came.
+    /// (anchoredSweep clockwise) — a later time rolls like an advancing
+    /// counter. numericText's countsDown is the inverse notion.
     var rollsUp: Bool = true
     /// The secondary zone's period, hue-pairing the card with the secondary
     /// cell in 12-hour mode; nil in 24-hour mode (neutral fill).
@@ -36,7 +44,6 @@ struct TrailingMinute: View {
         .font(DesignTokens.timeFont)
         .tracking(DesignTokens.timeTracking)
         .foregroundStyle(.primary.opacity(DesignTokens.inkOpacity))
-        .background { card.opacity(carded ? 1 : 0) }
         .animation(
             .easeInOut(duration: reduceMotion ? DesignTokens.minuteCrossfadeDuration
                                               : DesignTokens.minuteRollDuration),
@@ -44,30 +51,18 @@ struct TrailingMinute: View {
         )
     }
 
-    /// Two identities so the swap runs as a transition (the outgoing digits
-    /// keep their old minute string while they roll away), clipped to the
-    /// digits' own box so the roll reads through an odometer window. On
-    /// hover-in the plain digits exit one edge while the carded digits enter
-    /// from the other; symmetric per-branch edges make hover-out retrace the
-    /// motion in reverse for free.
+    /// numericText rolls only the digits that actually change (a ±30 offset
+    /// rolls just the tens digit), and minute ticks mid-hover roll the same
+    /// way for free.
     private var digits: some View {
-        ZStack {
-            if carded {
-                Text(minute).transition(roll(from: rollsUp ? .bottom : .top))
-            } else {
-                Text(minute).transition(roll(from: rollsUp ? .top : .bottom))
-            }
-        }
-        .clipped()
+        Text(carded ? secondaryMinute : primaryMinute)
+            .contentTransition(reduceMotion ? .opacity : .numericText(countsDown: !rollsUp))
+            .background { card.opacity(carded ? 1 : 0) }
     }
 
-    private func roll(from edge: Edge) -> AnyTransition {
-        reduceMotion ? .opacity : .move(edge: edge)
-    }
-
-    /// The chip riding under the whole `:mm`. Drawn as a background so it
-    /// never affects layout: it pins to the hour cells' height and outsets past
-    /// the text box purely visually. It uses the PRIMARY fill strength (the
+    /// The chip riding under the digits. Drawn as a background so it never
+    /// affects layout: it pins to the hour cells' height and outsets past the
+    /// digit box purely visually. It uses the PRIMARY fill strength (the
     /// secondary tier is too faint to read as a cue) with the SECONDARY
     /// period's hue, visually pairing the card with the cell whose minute it
     /// shows.

@@ -30,12 +30,13 @@ struct TimeGlyph: View {
         let sweep = ClockModel.anchoredSweep(secondary: secondaryTimezone, primary: primaryTimezone, at: now)
         let secondaryHour = digits(for: secondaryTimezone)
         let primaryHour = digits(for: primaryTimezone)
-        // Hover swaps the minute to the secondary zone ONLY when the sub-hour
+        // Hover rolls the minute to the secondary zone ONLY when the sub-hour
         // indicator is showing — the exact predicate that draws the arc.
+        // Both minutes are always computed: TrailingMinute keeps one live Text
+        // and content-transitions between the strings (replica-safe).
         let showsSecondaryMinute = hovered && sweep.fraction > 0
-        let minute = ClockModel.minute(
-            for: showsSecondaryMinute ? secondaryTimezone : primaryTimezone, at: now
-        )
+        let primaryMinute = ClockModel.minute(for: primaryTimezone, at: now)
+        let secondaryMinute = ClockModel.minute(for: secondaryTimezone, at: now)
         let secondaryPeriod = hour12 ? ClockModel.period(for: secondaryTimezone, at: now) : nil
         let primaryPeriod = hour12 ? ClockModel.period(for: primaryTimezone, at: now) : nil
 
@@ -47,17 +48,16 @@ struct TimeGlyph: View {
                      variant: variant, tone: .secondary, period: secondaryPeriod)
             HourCell(label: primaryLabel, hour: primaryHour,
                      fraction: 0, tone: .primary, period: primaryPeriod)
-            TrailingMinute(minute: minute, blink: blinkColon,
-                           carded: showsSecondaryMinute, rollsUp: sweep.clockwise,
-                           cardPeriod: secondaryPeriod)
+            TrailingMinute(primaryMinute: primaryMinute, secondaryMinute: secondaryMinute,
+                           blink: blinkColon, carded: showsSecondaryMinute,
+                           rollsUp: sweep.clockwise, cardPeriod: secondaryPeriod)
                 .padding(.leading, DesignTokens.trailingMinuteLeadingOffset)
         }
         .padding(.horizontal, DesignTokens.glyphHorizontalPadding)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(secondaryLabel) \(secondaryHour)\(spell(secondaryPeriod)), "
-            + "\(primaryLabel) \(primaryHour)\(spell(primaryPeriod)) "
-            + ClockModel.minute(for: primaryTimezone, at: now)
+            + "\(primaryLabel) \(primaryHour)\(spell(primaryPeriod)) \(primaryMinute)"
         )
     }
 
