@@ -37,13 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hostingView.autoresizingMask = [.width, .height]
             button.addSubview(hostingView)
 
-            // Hover flips the trailing :mm to the secondary minute (TimeGlyph).
+            // Hover rolls the trailing :mm to the secondary minute (TimeGlyph).
             // Tracked on the button so the whole item, padding included, is the
             // hover surface.
             hoverTracker = StatusItemHoverTracker(view: button) { [weak self] hovering in
-                // TEMP-HOVER-DEBUG (remove before PR): ground truth that
-                // tracking fires while the app is not frontmost.
-                print("hover \(hovering ? "ENTER" : "EXIT") frontmost=\(NSApp.isActive) @ \(Date())")
                 self?.clock.statusItemHovered = hovering
             }
         }
