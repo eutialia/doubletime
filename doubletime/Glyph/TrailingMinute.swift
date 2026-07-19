@@ -20,8 +20,9 @@ import SwiftUI
 /// plain Text with a content transition uses the same rendering path as every
 /// other glyph run, which replicas mirror correctly.
 struct TrailingMinute: View {
-    let primaryMinute: String
-    let secondaryMinute: String
+    /// The one string on display — TimeGlyph resolves which zone's minute this
+    /// is; the single always-present Text content-transitions when it changes.
+    let minute: String
     var blink: Bool = false
     /// True while showing the secondary minute (rolls and recolors the digits).
     var swapped: Bool = false
@@ -50,11 +51,7 @@ struct TrailingMinute: View {
         .font(DesignTokens.timeFont)
         .tracking(DesignTokens.timeTracking)
         .foregroundStyle(.primary.opacity(DesignTokens.inkOpacity))
-        .animation(
-            .easeInOut(duration: reduceMotion ? DesignTokens.minuteCrossfadeDuration
-                                              : DesignTokens.minuteRollDuration),
-            value: swapped
-        )
+        .animation(DesignTokens.minuteSwapAnimation(reduceMotion: reduceMotion), value: swapped)
     }
 
     /// numericText rolls only the digits that actually change (a ±30 offset
@@ -64,7 +61,7 @@ struct TrailingMinute: View {
     /// snap as when not hovered. The ink recolors in the same transaction as
     /// the roll, so digits and tone arrive together.
     private var digits: some View {
-        Text(swapped ? secondaryMinute : primaryMinute)
+        Text(minute)
             .contentTransition(reduceMotion ? .opacity
                 : .numericText(countsDown: swapped ? !rollsUp : rollsUp))
             .foregroundStyle(swapped

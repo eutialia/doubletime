@@ -62,6 +62,11 @@ enum DesignTokens {
     /// Reduce Motion swap duration: the roll is replaced by a plain crossfade,
     /// which reads faster than motion, so it runs shorter.
     static let minuteCrossfadeDuration: Double = 0.15
+    /// The one animation for the minute swap, shared by the live glyph and the
+    /// settings exemplars so the two surfaces cannot drift apart in timing.
+    static func minuteSwapAnimation(reduceMotion: Bool) -> Animation {
+        .easeInOut(duration: reduceMotion ? minuteCrossfadeDuration : minuteRollDuration)
+    }
 
     /// Clock-face arc / segment stroke.
     static let arcLineWidth: CGFloat = 1.2

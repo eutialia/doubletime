@@ -25,6 +25,7 @@ import AppKit
 final class StatusItemHoverTracker: NSResponder {
     private weak var view: NSView?
     private let onChange: (Bool) -> Void
+    private var trackingArea: NSTrackingArea?
     private var spaceObserver: (any NSObjectProtocol)?
     private var screenParametersObserver: (any NSObjectProtocol)?
 
@@ -32,12 +33,14 @@ final class StatusItemHoverTracker: NSResponder {
         self.view = view
         self.onChange = onChange
         super.init()
-        view.addTrackingArea(NSTrackingArea(
+        let trackingArea = NSTrackingArea(
             rect: .zero, // ignored with .inVisibleRect
             options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
             owner: self,
             userInfo: nil
-        ))
+        )
+        view.addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
 
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
@@ -67,6 +70,15 @@ final class StatusItemHoverTracker: NSResponder {
         }
         if let screenParametersObserver {
             NotificationCenter.default.removeObserver(screenParametersObserver)
+        }
+        // The tracking area does NOT retain its owner; leaving it installed
+        // after this tracker frees would message a dangling owner on the next
+        // enter/exit. The tracker is only ever owned (and released) by
+        // AppDelegate on the main actor, so the assumption cannot trap.
+        if let trackingArea, let view {
+            MainActor.assumeIsolated {
+                view.removeTrackingArea(trackingArea)
+            }
         }
     }
 

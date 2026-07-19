@@ -225,9 +225,10 @@ struct doubletimeTests {
     /// the rendered footprint — the status item length must never move.
     @Test @MainActor func hoverSwapsMinuteWidthNeutrally() throws {
         func render(hovered: Bool) throws -> NSImage {
-            let renderer = ImageRenderer(content: hoverGlyph(hovered: hovered).statusItemStrip())
-            renderer.scale = 4
-            return try #require(renderer.nsImage)
+            // Through the production raster path (internal for exactly this
+            // purpose), so the test fails if rasterize() drifts from the strip.
+            try #require(StatusItemRaster(scale: 1) { hoverGlyph(hovered: hovered) }
+                .rasterize(pixelScale: 4))
         }
         let plain = try render(hovered: false)
         let hovered = try render(hovered: true)
@@ -239,11 +240,10 @@ struct doubletimeTests {
     /// no-op — pixel-identical output.
     @Test @MainActor func hoverIsNoOpForWholeHourPair() throws {
         func render(hovered: Bool) throws -> Data? {
-            let renderer = ImageRenderer(
-                content: hoverGlyph(hovered: hovered, secondaryId: "Asia/Tokyo").statusItemStrip()
-            )
-            renderer.scale = 4
-            return try #require(renderer.nsImage).tiffRepresentation
+            let raster = StatusItemRaster(scale: 1) {
+                hoverGlyph(hovered: hovered, secondaryId: "Asia/Tokyo")
+            }
+            return try #require(raster.rasterize(pixelScale: 4)).tiffRepresentation
         }
         #expect(try render(hovered: false) == render(hovered: true))
     }

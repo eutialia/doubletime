@@ -101,11 +101,7 @@ struct OptionCard: View {
                     chip(hovered: true)
                         .opacity(hovered ? 1 : 0)
                 }
-                .animation(
-                    .easeInOut(duration: reduceMotion ? DesignTokens.minuteCrossfadeDuration
-                                                       : DesignTokens.minuteRollDuration),
-                    value: hovered
-                )
+                .animation(DesignTokens.minuteSwapAnimation(reduceMotion: reduceMotion), value: hovered)
                 .onHover { hovered = $0 }
                 Text(caption)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))

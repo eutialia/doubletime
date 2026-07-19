@@ -32,11 +32,12 @@ struct TimeGlyph: View {
         let primaryHour = digits(for: primaryTimezone)
         // Hover rolls the minute to the secondary zone ONLY when the sub-hour
         // indicator is showing — the exact predicate that draws the arc.
-        // Both minutes are always computed: TrailingMinute keeps one live Text
-        // and content-transitions between the strings (replica-safe).
+        // TrailingMinute keeps one always-present Text (replica-safe) that
+        // content-transitions when this resolution changes.
         let showsSecondaryMinute = hovered && sweep.fraction > 0
         let primaryMinute = ClockModel.minute(for: primaryTimezone, at: now)
-        let secondaryMinute = ClockModel.minute(for: secondaryTimezone, at: now)
+        let minute = showsSecondaryMinute
+            ? ClockModel.minute(for: secondaryTimezone, at: now) : primaryMinute
         let secondaryPeriod = hour12 ? ClockModel.period(for: secondaryTimezone, at: now) : nil
         let primaryPeriod = hour12 ? ClockModel.period(for: primaryTimezone, at: now) : nil
 
@@ -48,8 +49,8 @@ struct TimeGlyph: View {
                      variant: variant, tone: .secondary, period: secondaryPeriod)
             HourCell(label: primaryLabel, hour: primaryHour,
                      fraction: 0, tone: .primary, period: primaryPeriod)
-            TrailingMinute(primaryMinute: primaryMinute, secondaryMinute: secondaryMinute,
-                           blink: blinkColon, swapped: showsSecondaryMinute,
+            TrailingMinute(minute: minute, blink: blinkColon,
+                           swapped: showsSecondaryMinute,
                            rollsUp: sweep.clockwise, secondaryPeriod: secondaryPeriod)
                 .padding(.leading, DesignTokens.trailingMinuteLeadingOffset)
         }
