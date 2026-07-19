@@ -53,8 +53,14 @@ enum DesignTokens {
     static let statusItemGlyphNudge: CGFloat = 1.75
     /// Outer horizontal padding around the whole glyph.
     static let glyphHorizontalPadding: CGFloat = 1
-    /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
-    static let trailingMinuteLeadingOffset: CGFloat = -1
+    /// Leading offset of the trailing `:mm`. Canon specifies marginLeft -1 (a
+    /// snug colon directly against its digits), but the hover feature opened a
+    /// minuteColonGap between colon and digits — keeping the -1 left the colon
+    /// equidistant from the primary cell and its own digits, reading as
+    /// orphaned. 0 restores the proportion: cell→colon gets the full
+    /// glyphSpacing rhythm, colon→digits stays the tighter pair. A deliberate
+    /// deviation from canon, forced by the gap.
+    static let trailingMinuteLeadingOffset: CGFloat = 0
     /// Static gap between the colon and the minute digits. Non-zero so the
     /// hovered card's leading edge clears the colon ink (the card may not
     /// touch the colon — it marks the DIGITS as swapped); at 10pt this reads
