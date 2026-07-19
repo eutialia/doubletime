@@ -43,7 +43,7 @@ struct TrailingMinute: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: DesignTokens.minuteColonGap) {
             colon
             digits
         }
@@ -79,7 +79,8 @@ struct TrailingMinute: View {
         RoundedRectangle(cornerRadius: DesignTokens.cellCornerRadius)
             .fill(DesignTokens.chipFill(isPrimary: true, period: cardPeriod, colorScheme: colorScheme))
             .frame(height: DesignTokens.cellSize.height)
-            .padding(.horizontal, -DesignTokens.minuteCardOutset)
+            .padding(.leading, -DesignTokens.minuteCardLeadingOutset)
+            .padding(.trailing, -DesignTokens.minuteCardTrailingOutset)
     }
 
     /// When blinking, ONLY the colon runs a per-second timeline (the rest of the

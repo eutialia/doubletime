@@ -55,10 +55,18 @@ enum DesignTokens {
     static let glyphHorizontalPadding: CGFloat = 1
     /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
     static let trailingMinuteLeadingOffset: CGFloat = -1
-    /// Horizontal outset of the hovered minute's card past the `:mm` text box.
-    /// The card is drawn as a background (never layout) so the glyph width —
-    /// and therefore the status item length — cannot change on hover.
-    static let minuteCardOutset: CGFloat = 1.5
+    /// Static gap between the colon and the minute digits. Non-zero so the
+    /// hovered card's leading edge clears the colon ink (the card may not
+    /// touch the colon — it marks the DIGITS as swapped); at 10pt this reads
+    /// as ordinary tracking when idle.
+    static let minuteColonGap: CGFloat = 1
+    /// Outsets of the hovered minute's card past the digits' text box. Drawn
+    /// as a background (never layout) so the glyph width — and therefore the
+    /// status item length — cannot change on hover. Asymmetric: the leading
+    /// side stays shy of the colon (see minuteColonGap), the trailing side
+    /// breathes like the hour cells.
+    static let minuteCardLeadingOutset: CGFloat = 0.5
+    static let minuteCardTrailingOutset: CGFloat = 1.5
     /// Full duration of the trailing-minute roll (outgoing digits and incoming
     /// digits move together, reading as one continuous ribbon). Also paces the
     /// settings-chip crossfade so both surfaces feel like one mechanism.
