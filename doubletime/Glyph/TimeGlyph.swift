@@ -8,7 +8,7 @@ import SwiftUI
 /// The menu bar glyph: [secondary HourCell][primary HourCell][trailing :mm].
 ///
 /// The trailing `:mm` is the primary minute; while `hovered` over a sub-hour
-/// pair it flips to the SECONDARY minute on a chip-fill card (see
+/// pair it rolls to the SECONDARY minute on a chip-fill card (see
 /// TrailingMinute) — gated on the same predicate that draws the indicator, so
 /// whole-hour pairs make hover a no-op. The primary cell shows no indicator;
 /// the secondary cell shows an arc/segmented indicator encoding the signed
@@ -48,7 +48,8 @@ struct TimeGlyph: View {
             HourCell(label: primaryLabel, hour: primaryHour,
                      fraction: 0, tone: .primary, period: primaryPeriod)
             TrailingMinute(minute: minute, blink: blinkColon,
-                           carded: showsSecondaryMinute, cardPeriod: secondaryPeriod)
+                           carded: showsSecondaryMinute, rollsUp: sweep.clockwise,
+                           cardPeriod: secondaryPeriod)
                 .padding(.leading, DesignTokens.trailingMinuteLeadingOffset)
         }
         .padding(.horizontal, DesignTokens.glyphHorizontalPadding)

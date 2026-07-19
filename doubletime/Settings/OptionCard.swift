@@ -77,9 +77,8 @@ struct OptionCard: View {
 
     /// One exemplar chip. Hovering swaps the trailing minute to the secondary
     /// zone — the same behavior as the live status item — so the feature is
-    /// discoverable from Settings. The chip is a re-rasterized still photograph
-    /// per state: the swap is instant here; the flip animation exists only in
-    /// the live menu bar.
+    /// discoverable from Settings. The chips are pixel-true stills, so the
+    /// menubar's live roll is approximated by crossfading the two states.
     private struct GlyphExample: View {
         let secondary: TimeZone
         let primary: TimeZone
@@ -91,18 +90,17 @@ struct OptionCard: View {
 
         var body: some View {
             VStack(spacing: 4) {
-                GlyphChip(fixedHeight: 52) {
-                    TimeGlyph(
-                        secondaryLabel: ClockModel.defaultLabel(for: secondary, at: OptionCard.exemplar),
-                        secondaryTimezone: secondary,
-                        primaryLabel: ClockModel.defaultLabel(for: primary, at: OptionCard.exemplar),
-                        primaryTimezone: primary,
-                        now: OptionCard.exemplar,
-                        hour12: hour12,
-                        variant: variant,
-                        hovered: hovered
-                    )
+                // Two pixel-true stills, crossfaded: the menubar's live roll
+                // can't play inside a rasterized chip, and fading between
+                // states that differ only in the minute means only the digits
+                // and card appear to change. The unhovered still stays opaque
+                // underneath so shared pixels never dip mid-fade.
+                ZStack {
+                    chip(hovered: false)
+                    chip(hovered: true)
+                        .opacity(hovered ? 1 : 0)
                 }
+                .animation(.easeInOut(duration: DesignTokens.minuteRollDuration), value: hovered)
                 .onHover { hovered = $0 }
                 Text(caption)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
@@ -110,6 +108,21 @@ struct OptionCard: View {
                     .foregroundStyle(DesignTokens.textFaint)
             }
             .frame(maxWidth: .infinity)
+        }
+
+        private func chip(hovered: Bool) -> some View {
+            GlyphChip(fixedHeight: 52) {
+                TimeGlyph(
+                    secondaryLabel: ClockModel.defaultLabel(for: secondary, at: OptionCard.exemplar),
+                    secondaryTimezone: secondary,
+                    primaryLabel: ClockModel.defaultLabel(for: primary, at: OptionCard.exemplar),
+                    primaryTimezone: primary,
+                    now: OptionCard.exemplar,
+                    hour12: hour12,
+                    variant: variant,
+                    hovered: hovered
+                )
+            }
         }
     }
 }
