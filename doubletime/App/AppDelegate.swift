@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let clock = ClockModel()
     private var statusItem: NSStatusItem?
     private var hostingView: NSHostingView<StatusBarView>!
+    private var hoverTracker: StatusItemHoverTracker?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The status bar never derives an item's length from SwiftUI content
@@ -35,6 +36,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hostingView.frame = button.bounds
             hostingView.autoresizingMask = [.width, .height]
             button.addSubview(hostingView)
+
+            // Hover flips the trailing :mm to the secondary minute (TimeGlyph).
+            // Tracked on the button so the whole item, padding included, is the
+            // hover surface.
+            hoverTracker = StatusItemHoverTracker(view: button) { [weak self] hovering in
+                // TEMP-HOVER-DEBUG (remove before PR): ground truth that
+                // tracking fires while the app is not frontmost.
+                print("hover \(hovering ? "ENTER" : "EXIT") frontmost=\(NSApp.isActive) @ \(Date())")
+                self?.clock.statusItemHovered = hovering
+            }
         }
 
         let menu = NSMenu()
@@ -46,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
         statusItem.menu = menu
+        menu.delegate = self
     }
 
     @objc private func openSettings() {
@@ -55,5 +67,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    // AppKit guarantees neither a mouseExited when the menu captures the
+    // pointer nor a mouseEntered if the pointer is still over the item when
+    // the menu closes — force-sync hover around the menu's lifetime.
+    func menuWillOpen(_ menu: NSMenu) {
+        clock.statusItemHovered = false
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        hoverTracker?.sync()
     }
 }
