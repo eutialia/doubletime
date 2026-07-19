@@ -1,6 +1,6 @@
 # Hover: Secondary-Minute Flip Implementation Plan
 
-> **SUPERSEDED IN PART:** shipped as a `.contentTransition(.numericText)` directional roll with the card behind the digits only — not the Task-1 flip. See `TrailingMinute.swift` for the final mechanism and rationale (replica-window rendering). The flip specs in Tasks 1/4/5 are historical.
+> **SUPERSEDED IN PART:** shipped as a `.contentTransition(.numericText)` directional roll with the swap signaled by recolored digit ink (`DesignTokens.minuteSwapInk`) — no card, and not the Task-1 flip. See `TrailingMinute.swift` for the final mechanism and rationale (replica-window rendering). The flip/card specs in Tasks 1/4/5 are historical.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

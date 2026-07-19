@@ -248,7 +248,7 @@ struct doubletimeTests {
         #expect(try render(hovered: false) == render(hovered: true))
     }
 
-    /// The hovered card obeys the same zero-overflow rule as the rest of the
+    /// The hovered state obeys the same zero-overflow rule as the rest of the
     /// ensemble inside the fixed 22pt strip (macOS clips status items).
     @Test @MainActor func hoveredEnsembleFitsInsideStatusStrip() throws {
         let scan = try RasterScan(of: hoverGlyph(hovered: true).statusItemStrip())

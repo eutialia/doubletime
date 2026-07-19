@@ -9,7 +9,7 @@ A macOS menu bar clock that shows two time zones side by side.
 One cell per zone, plus the primary minute. A thin ring on the secondary cell encodes the sub-hour offset, so half-hour zones like Kolkata read correctly.
 
 <p align="center">
-  <img src="docs/menubar-hover.png" width="261" alt="Hovering rolls the minute to the secondary zone (card marks the swap)">
+  <img src="docs/menubar-hover.png" width="261" alt="Hovering rolls the minute to the secondary zone (tinted ink marks the swap)">
 </p>
 
 The name and the itch both come from [One Clock](https://elaworkshop.github.io/oneclock).

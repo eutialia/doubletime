@@ -53,26 +53,8 @@ enum DesignTokens {
     static let statusItemGlyphNudge: CGFloat = 1.75
     /// Outer horizontal padding around the whole glyph.
     static let glyphHorizontalPadding: CGFloat = 1
-    /// Leading offset of the trailing `:mm`. Canon specifies marginLeft -1 (a
-    /// snug colon directly against its digits), but the hover feature opened a
-    /// minuteColonGap between colon and digits — keeping the -1 left the colon
-    /// equidistant from the primary cell and its own digits, reading as
-    /// orphaned. 0 restores the proportion: cell→colon gets the full
-    /// glyphSpacing rhythm, colon→digits stays the tighter pair. A deliberate
-    /// deviation from canon, forced by the gap.
-    static let trailingMinuteLeadingOffset: CGFloat = 0
-    /// Static gap between the colon and the minute digits. Non-zero so the
-    /// hovered card's leading edge clears the colon ink (the card may not
-    /// touch the colon — it marks the DIGITS as swapped); at 10pt this reads
-    /// as ordinary tracking when idle.
-    static let minuteColonGap: CGFloat = 1
-    /// Outsets of the hovered minute's card past the digits' text box. Drawn
-    /// as a background (never layout) so the glyph width — and therefore the
-    /// status item length — cannot change on hover. Asymmetric: the leading
-    /// side stays shy of the colon (see minuteColonGap), the trailing side
-    /// breathes like the hour cells.
-    static let minuteCardLeadingOutset: CGFloat = 0.5
-    static let minuteCardTrailingOutset: CGFloat = 1.5
+    /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
+    static let trailingMinuteLeadingOffset: CGFloat = -1
     /// Full duration of the trailing-minute roll (outgoing digits and incoming
     /// digits move together, reading as one continuous ribbon). Also paces the
     /// settings-chip crossfade so both surfaces feel like one mechanism.
@@ -163,13 +145,32 @@ enum DesignTokens {
         return hueChipFill(isPrimary: isPrimary, period: period, colorScheme: colorScheme)
     }
 
+    /// Ink for the trailing minute while it shows the SECONDARY zone (hover).
+    /// The swap state is carried by the ink itself — no card: in 24-hour mode
+    /// the digits dim to the secondary label's channel (the design's one
+    /// "belongs to the other zone" treatment), in 12-hour mode they take the
+    /// secondary period's hue at full ink strength (the sanctioned hue
+    /// exception). The idle minute always uses plain primary ink.
+    static func minuteSwapInk(period: ClockModel.Period?, colorScheme: ColorScheme) -> Color {
+        guard let period else {
+            return Color.primary.opacity(secondaryLabelOpacity)
+        }
+        let rgb = periodHue(period, light: colorScheme == .light)
+        return Color(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, opacity: inkOpacity)
+    }
+
+    /// The single source for the 12-hour hues (warm amber = AM, cool indigo =
+    /// PM), shared by the chip fills and the hovered minute's swap ink.
+    private static func periodHue(_ period: ClockModel.Period, light: Bool) -> (Double, Double, Double) {
+        switch period {
+        case .am: light ? (228, 148, 12) : (255, 209, 128)
+        case .pm: light ? (72, 96, 224) : (138, 160, 255)
+        }
+    }
+
     private static func hueChipFill(isPrimary: Bool, period: ClockModel.Period, colorScheme: ColorScheme) -> Color {
         let light = colorScheme == .light
-        let rgb: (Double, Double, Double)
-        switch period {
-        case .am: rgb = light ? (228, 148, 12) : (255, 209, 128)
-        case .pm: rgb = light ? (72, 96, 224) : (138, 160, 255)
-        }
+        let rgb = periodHue(period, light: light)
         let alpha: Double
         switch (isPrimary, period, light) {
         case (true, .am, false): alpha = 0.40

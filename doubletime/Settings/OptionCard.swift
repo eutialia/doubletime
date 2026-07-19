@@ -94,8 +94,8 @@ struct OptionCard: View {
                 // Two pixel-true stills, crossfaded: the menubar's live roll
                 // can't play inside a rasterized chip, and fading between
                 // states that differ only in the minute means only the digits
-                // and card appear to change. The unhovered still stays opaque
-                // underneath so shared pixels never dip mid-fade.
+                // (and their swap tint) appear to change. The unhovered still
+                // stays opaque underneath so shared pixels never dip mid-fade.
                 ZStack {
                     chip(hovered: false)
                     chip(hovered: true)
