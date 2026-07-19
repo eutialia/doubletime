@@ -13,6 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let clock = ClockModel()
     private var statusItem: NSStatusItem?
     private var hostingView: NSHostingView<StatusBarView>!
+    private var hoverTracker: StatusItemHoverTracker?
+    /// Gates the hover flag while the item's menu is up (see the tracker
+    /// closure): tracking events must not resurface the swap behind the menu.
+    private var menuIsOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The status bar never derives an item's length from SwiftUI content
@@ -35,6 +39,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hostingView.frame = button.bounds
             hostingView.autoresizingMask = [.width, .height]
             button.addSubview(hostingView)
+
+            // Hover rolls the trailing :mm to the secondary minute (TimeGlyph).
+            // Tracked on the button so the whole item, padding included, is the
+            // hover surface. This closure is the SINGLE write point for the
+            // flag: hover means pointer-over AND no open menu (the .activeAlways
+            // area outlives menu tracking, so an enter mustn't resurface the
+            // swap behind an open menu), and the @Observable flag only mutates
+            // on real changes — every write invalidates the live status item.
+            hoverTracker = StatusItemHoverTracker(view: button) { [weak self] hovering in
+                guard let self else { return }
+                let hovered = hovering && !self.menuIsOpen
+                if self.clock.statusItemHovered != hovered {
+                    self.clock.statusItemHovered = hovered
+                }
+            }
         }
 
         let menu = NSMenu()
@@ -46,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
         statusItem.menu = menu
+        menu.delegate = self
     }
 
     @objc private func openSettings() {
@@ -55,5 +75,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    // AppKit guarantees neither a mouseExited when the menu captures the
+    // pointer nor a mouseEntered if the pointer is still over the item when
+    // the menu closes — force-sync hover around the menu's lifetime.
+    func menuWillOpen(_ menu: NSMenu) {
+        menuIsOpen = true
+        if clock.statusItemHovered {
+            clock.statusItemHovered = false
+        }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        menuIsOpen = false
+        hoverTracker?.sync()
     }
 }

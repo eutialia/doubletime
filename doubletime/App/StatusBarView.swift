@@ -46,7 +46,8 @@ struct StatusBarView: View {
             now: date,
             hour12: clock.hour12,
             variant: clock.variant,
-            blinkColon: clock.blinkColon
+            blinkColon: clock.blinkColon,
+            hovered: clock.statusItemHovered
         )
         // Shift the ensemble down so the label rides inside the fixed 22pt
         // status button (no top clip on unfocused displays). Settings exemplars

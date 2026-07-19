@@ -112,6 +112,11 @@ final class ClockModel {
     /// minute tick.
     private(set) var systemZoneGeneration = 0
 
+    /// True while the pointer is over the status item. Transient interaction
+    /// state — deliberately NOT persisted (no didSet → UserDefaults): it is
+    /// meaningless across launches, like systemZoneGeneration.
+    var statusItemHovered = false
+
     @ObservationIgnored private var systemZoneObserver: (any NSObjectProtocol)?
 
     init() {

@@ -199,6 +199,70 @@ struct doubletimeTests {
         #expect(ClockModel.offsetMinutes(from: la, to: la, at: Self.reference) == 0)
     }
 
+    // MARK: Minute digits
+
+    @Test func minuteRendersZoneWallClock() {
+        // 12:00 UTC → Kathmandu (UTC+5:45) 17:45, Kolkata (UTC+5:30) 17:30,
+        // Los Angeles (PDT) 05:00.
+        #expect(ClockModel.minute(for: timezone("Asia/Kathmandu"), at: Self.reference) == "45")
+        #expect(ClockModel.minute(for: timezone("Asia/Kolkata"), at: Self.reference) == "30")
+        #expect(ClockModel.minute(for: timezone("America/Los_Angeles"), at: Self.reference) == "00")
+    }
+
+    // MARK: Hover (secondary-minute swap)
+
+    /// A quarter-hour pair (Kathmandu +5:45 over PDT) so BOTH minute digits
+    /// differ between the zones — the strongest swap exercise.
+    private func hoverGlyph(hovered: Bool, secondaryId: String = "Asia/Kathmandu") -> some View {
+        TimeGlyph(
+            secondaryLabel: "KAT", secondaryTimezone: timezone(secondaryId),
+            primaryLabel: "PDT", primaryTimezone: timezone("America/Los_Angeles"),
+            now: Self.reference, variant: .arc, hovered: hovered
+        )
+    }
+
+    /// Hover must swap the trailing minute (pixels change) WITHOUT changing
+    /// the rendered footprint — the status item length must never move.
+    @Test @MainActor func hoverSwapsMinuteWidthNeutrally() throws {
+        func render(hovered: Bool) throws -> NSImage {
+            // Through the production raster path (internal for exactly this
+            // purpose), so the test fails if rasterize() drifts from the strip.
+            try #require(StatusItemRaster(scale: 1) { hoverGlyph(hovered: hovered) }
+                .rasterize(pixelScale: 4))
+        }
+        let plain = try render(hovered: false)
+        let hovered = try render(hovered: true)
+        #expect(plain.tiffRepresentation != hovered.tiffRepresentation)
+        #expect(plain.size == hovered.size)
+    }
+
+    /// A whole-hour pair draws no indicator, and hover must be a complete
+    /// no-op — pixel-identical output.
+    @Test @MainActor func hoverIsNoOpForWholeHourPair() throws {
+        func render(hovered: Bool) throws -> Data? {
+            let raster = StatusItemRaster(scale: 1) {
+                hoverGlyph(hovered: hovered, secondaryId: "Asia/Tokyo")
+            }
+            return try #require(raster.rasterize(pixelScale: 4)).tiffRepresentation
+        }
+        #expect(try render(hovered: false) == render(hovered: true))
+    }
+
+    /// The hovered state obeys the same zero-overflow rule as the rest of the
+    /// ensemble inside the fixed 22pt strip (macOS clips status items).
+    @Test @MainActor func hoveredEnsembleFitsInsideStatusStrip() throws {
+        let scan = try RasterScan(of: hoverGlyph(hovered: true).statusItemStrip())
+
+        func rowHasInk(_ y: Int) -> Bool {
+            (0..<scan.width).contains { scan.isInk($0, y) }
+        }
+
+        let firstInkRow = try #require((0..<scan.height).first(where: rowHasInk))
+        let lastInkRow = try #require((0..<scan.height).reversed().first(where: rowHasInk))
+        #expect(firstInkRow > 0, "hovered ink clips at the status button top")
+        #expect(lastInkRow < scan.height - 1, "hovered ink clips at the status button bottom")
+    }
+
     // MARK: Clock-face perimeter
 
     /// The arc is parameterized by path length from 12 o'clock, clockwise:

@@ -55,6 +55,18 @@ enum DesignTokens {
     static let glyphHorizontalPadding: CGFloat = 1
     /// Design: the trailing `:mm` carries an extra leading offset (marginLeft -1).
     static let trailingMinuteLeadingOffset: CGFloat = -1
+    /// Full duration of the trailing-minute roll (outgoing digits and incoming
+    /// digits move together, reading as one continuous ribbon). Also paces the
+    /// settings-chip crossfade so both surfaces feel like one mechanism.
+    static let minuteRollDuration: Double = 0.3
+    /// Reduce Motion swap duration: the roll is replaced by a plain crossfade,
+    /// which reads faster than motion, so it runs shorter.
+    static let minuteCrossfadeDuration: Double = 0.15
+    /// The one animation for the minute swap, shared by the live glyph and the
+    /// settings exemplars so the two surfaces cannot drift apart in timing.
+    static func minuteSwapAnimation(reduceMotion: Bool) -> Animation {
+        .easeInOut(duration: reduceMotion ? minuteCrossfadeDuration : minuteRollDuration)
+    }
 
     /// Clock-face arc / segment stroke.
     static let arcLineWidth: CGFloat = 1.2
@@ -138,13 +150,32 @@ enum DesignTokens {
         return hueChipFill(isPrimary: isPrimary, period: period, colorScheme: colorScheme)
     }
 
+    /// Ink for the trailing minute while it shows the SECONDARY zone (hover).
+    /// The swap state is carried by the ink itself — no card: in 24-hour mode
+    /// the digits dim to the secondary label's channel (the design's one
+    /// "belongs to the other zone" treatment), in 12-hour mode they take the
+    /// secondary period's hue at full ink strength (the sanctioned hue
+    /// exception). The idle minute always uses plain primary ink.
+    static func minuteSwapInk(period: ClockModel.Period?, colorScheme: ColorScheme) -> Color {
+        guard let period else {
+            return Color.primary.opacity(secondaryLabelOpacity)
+        }
+        let rgb = periodHue(period, light: colorScheme == .light)
+        return Color(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, opacity: inkOpacity)
+    }
+
+    /// The single source for the 12-hour hues (warm amber = AM, cool indigo =
+    /// PM), shared by the chip fills and the hovered minute's swap ink.
+    private static func periodHue(_ period: ClockModel.Period, light: Bool) -> (Double, Double, Double) {
+        switch period {
+        case .am: light ? (228, 148, 12) : (255, 209, 128)
+        case .pm: light ? (72, 96, 224) : (138, 160, 255)
+        }
+    }
+
     private static func hueChipFill(isPrimary: Bool, period: ClockModel.Period, colorScheme: ColorScheme) -> Color {
         let light = colorScheme == .light
-        let rgb: (Double, Double, Double)
-        switch period {
-        case .am: rgb = light ? (228, 148, 12) : (255, 209, 128)
-        case .pm: rgb = light ? (72, 96, 224) : (138, 160, 255)
-        }
+        let rgb = periodHue(period, light: light)
         let alpha: Double
         switch (isPrimary, period, light) {
         case (true, .am, false): alpha = 0.40
