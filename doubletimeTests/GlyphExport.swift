@@ -66,7 +66,7 @@ struct GlyphExport {
     @Test(.enabled(if: GlyphExport.exportDirectory != nil))
     @MainActor func exportHoveredMenubarGlyph() throws {
         let directory = try #require(Self.exportDirectory)
-        // Kathmandu (+5:45) over PDT: a quarter-hour pair, so hover flips
+        // Kathmandu (+5:45) over PDT: a quarter-hour pair, so hover rolls
         // :34 → :19 — both digits change, and the card rides under them.
         let glyph = TimeGlyph(
             secondaryLabel: "KAT", secondaryTimezone: TimeZone(identifier: "Asia/Kathmandu")!,

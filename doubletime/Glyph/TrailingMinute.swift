@@ -28,6 +28,12 @@ struct TrailingMinute: View {
     /// Roll direction: true when the secondary zone is ahead of the primary
     /// (anchoredSweep clockwise) — a later time rolls like an advancing
     /// counter. numericText's countsDown is the inverse notion.
+    ///
+    /// countsDown is keyed on `carded`, not fixed, so hover-out retraces the
+    /// hover-in roll instead of repeating it: the transition reads the
+    /// modifier's value in the same transaction as the string change, so
+    /// flipping which value it computes when `carded` flips reverses the
+    /// perceived direction on the way back.
     var rollsUp: Bool = true
     /// The secondary zone's period, hue-pairing the card with the secondary
     /// cell in 12-hour mode; nil in 24-hour mode (neutral fill).
@@ -52,11 +58,14 @@ struct TrailingMinute: View {
     }
 
     /// numericText rolls only the digits that actually change (a ±30 offset
-    /// rolls just the tens digit), and minute ticks mid-hover roll the same
-    /// way for free.
+    /// rolls just the tens digit). A minute tick mid-hover changes the string
+    /// with no animated transaction (`.animation` above is keyed to `carded`,
+    /// not to the minute values), so it snaps — the same ordinary per-minute
+    /// snap as when not hovered.
     private var digits: some View {
         Text(carded ? secondaryMinute : primaryMinute)
-            .contentTransition(reduceMotion ? .opacity : .numericText(countsDown: !rollsUp))
+            .contentTransition(reduceMotion ? .opacity
+                : .numericText(countsDown: carded ? !rollsUp : rollsUp))
             .background { card.opacity(carded ? 1 : 0) }
     }
 
