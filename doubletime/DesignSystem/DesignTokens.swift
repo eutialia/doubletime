@@ -62,6 +62,9 @@ enum DesignTokens {
     /// Full duration of the trailing-minute flip (the two half-turns overlap,
     /// meeting edge-on at the midpoint).
     static let minuteFlipDuration: Double = 0.3
+    /// Reduce Motion swap duration: the flip is replaced by a plain crossfade,
+    /// which reads faster than a 3D turn, so it runs shorter.
+    static let minuteCrossfadeDuration: Double = 0.15
 
     /// Clock-face arc / segment stroke.
     static let arcLineWidth: CGFloat = 1.2

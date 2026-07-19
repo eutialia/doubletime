@@ -36,7 +36,7 @@ struct TrailingMinute: View {
             }
         }
         .animation(
-            .easeInOut(duration: reduceMotion ? 0.15 : DesignTokens.minuteFlipDuration),
+            .easeInOut(duration: reduceMotion ? DesignTokens.minuteCrossfadeDuration : DesignTokens.minuteFlipDuration),
             value: carded
         )
     }
