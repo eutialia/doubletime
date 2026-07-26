@@ -107,20 +107,28 @@ struct ClockModelTests {
     }
 
     /// A persisted identifier no `TimeZone` recognizes (a renamed IANA zone,
-    /// say) must not leave the clock without a zone.
-    ///
-    /// Caveat, pinned honestly: this is a HALF-repair. `primaryTimezone` falls
-    /// back to `.autoupdatingCurrent`, but `primaryTimezoneIdentifier` keeps the
-    /// dangling id, so `primaryIsSystem` stays false and the picker still shows
-    /// a pinned zone the clock is not actually using. That inconsistency is
-    /// recorded here as current behaviour, NOT blessed as correct.
+    /// say) must not leave the clock without a zone — and the primary must
+    /// self-heal COMPLETELY: an unresolvable pin would follow the system
+    /// anyway, so the model becomes "System" deliberately (`primaryIsSystem`
+    /// tells the truth, the picker shows a real selection) and the dangling id
+    /// is purged from the store rather than resurfacing on the next launch.
     @Test func unresolvableStoredZonesFallBack() {
         scratch.store.set("Not/AZone", forKey: ClockModel.secondaryTimezoneKey)
         scratch.store.set("Not/AZone", forKey: ClockModel.primaryTimezoneKey)
 
-        let model = ClockModel(defaults: scratch.reopened())
+        let store = scratch.reopened()
+        let model = ClockModel(defaults: store)
         #expect(model.secondaryTimezone.identifier == "Asia/Tokyo")
         #expect(model.primaryTimezone.identifier == TimeZone.autoupdatingCurrent.identifier)
+        #expect(model.primaryTimezoneIdentifier == nil)
+        #expect(model.primaryIsSystem)
+        // Read back through the same instance the model healed — two handles to
+        // one suite are not guaranteed immediately consistent.
+        #expect(store.string(forKey: ClockModel.primaryTimezoneKey) == nil)
+
+        // The healed state must survive a relaunch as a deliberate "System".
+        let relaunched = ClockModel(defaults: scratch.reopened())
+        #expect(relaunched.primaryIsSystem)
     }
 
     // MARK: Primary zone resolution
