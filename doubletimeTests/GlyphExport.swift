@@ -26,13 +26,7 @@ struct GlyphExport {
 
     /// The app's default pair at a DST-stable instant: 2026-04-20 12:34 UTC
     /// puts JST at 21 and PDT at 05:34.
-    private static let reference: Date = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return calendar.date(
-            from: DateComponents(year: 2026, month: 4, day: 20, hour: 12, minute: 34)
-        )!
-    }()
+    private static let reference: Date = utcInstant(month: 4, day: 20, hour: 12, minute: 34)
 
     /// Composites the canonical strip on black and writes a 6 px/pt PNG (the
     /// README displays at 3× point size: exact pixels for 2× readers, a clean

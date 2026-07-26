@@ -20,28 +20,13 @@ struct TimezoneSearchList: View {
 
     @State private var searchText = ""
 
-    /// Stable scroll/id anchor for the pinned System row.
-    private static let systemRowID = "__system__"
-
-    private var filteredOptions: [TimezoneOption] {
-        guard !searchText.isEmpty else { return TimezoneOption.all }
-        return TimezoneOption.all.filter {
-            $0.city.localizedStandardContains(searchText) ||
-            $0.id.localizedStandardContains(searchText) ||
-            $0.abbreviation.localizedStandardContains(searchText)
-        }
-    }
-
-    private var showSystemRow: Bool {
-        includeSystemRow &&
-        (searchText.isEmpty || "system auto".localizedStandardContains(searchText))
-    }
-
     var body: some View {
         // Hoisted ABOVE the TimelineView so the per-minute tick only refreshes row
         // times — the (search-dependent) filtering is not re-evaluated per tick.
-        let options = filteredOptions
-        let systemRow = showSystemRow
+        let options = TimezoneSearch.filteredOptions(matching: searchText)
+        let systemRow = TimezoneSearch.showsSystemRow(
+            includeSystemRow: includeSystemRow, matching: searchText
+        )
 
         VStack(spacing: 8) {
             HStack(spacing: 6) {
@@ -69,7 +54,7 @@ struct TimezoneSearchList: View {
                                 } action: {
                                     onSelect(nil)
                                 }
-                                .id(Self.systemRowID)
+                                .id(TimezoneSearch.systemRowID)
                                 .accessibilityAddTraits(currentIdentifier == nil ? .isSelected : [])
                                 Divider().opacity(0.4)
                             }
@@ -90,7 +75,12 @@ struct TimezoneSearchList: View {
                         }
                     }
                     .onAppear {
-                        if let target = scrollTarget(options: options, systemRow: systemRow) {
+                        let target = TimezoneSearch.scrollTarget(
+                            currentIdentifier: currentIdentifier,
+                            options: options,
+                            showsSystemRow: systemRow
+                        )
+                        if let target {
                             proxy.scrollTo(target, anchor: .center)
                         }
                     }
@@ -124,14 +114,6 @@ struct TimezoneSearchList: View {
         Image(systemName: "checkmark")
             .font(DesignTokens.settingsFootnote.weight(.semibold))
             .foregroundStyle(DesignTokens.textStrong)
-    }
-
-    /// The row id to scroll to on open — only if it exists in the current list.
-    private func scrollTarget(options: [TimezoneOption], systemRow: Bool) -> String? {
-        if let currentIdentifier {
-            return options.contains { $0.id == currentIdentifier } ? currentIdentifier : nil
-        }
-        return systemRow ? Self.systemRowID : nil
     }
 
     private func row<Label: View>(@ViewBuilder _ label: () -> Label, action: @escaping () -> Void) -> some View {

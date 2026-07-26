@@ -41,11 +41,16 @@ final class ClockModel {
     /// them as raw field codes ("M02" instead of "Feb").
     private nonisolated static let fixedLocale = Locale(identifier: "en_US_POSIX")
 
+    /// Where every setting on this model is persisted. Injected so a suite can
+    /// hand in a throwaway suite-name store instead of writing the developer's
+    /// real preferences; production always passes `.standard`.
+    private let defaults: UserDefaults
+
     // MARK: Zones
 
     var secondaryTimezone: TimeZone {
         didSet {
-            UserDefaults.standard.set(secondaryTimezone.identifier, forKey: Self.secondaryTimezoneKey)
+            defaults.set(secondaryTimezone.identifier, forKey: Self.secondaryTimezoneKey)
         }
     }
 
@@ -54,7 +59,7 @@ final class ClockModel {
     var primaryTimezoneIdentifier: String? {
         didSet {
             primaryTimezone = Self.resolve(primaryTimezoneIdentifier)
-            UserDefaults.standard.setOrRemove(primaryTimezoneIdentifier, forKey: Self.primaryTimezoneKey)
+            defaults.setOrRemove(primaryTimezoneIdentifier, forKey: Self.primaryTimezoneKey)
         }
     }
 
@@ -73,11 +78,11 @@ final class ClockModel {
     // MARK: Labels
 
     var secondaryLabelOverride: String? {
-        didSet { UserDefaults.standard.setOrRemove(secondaryLabelOverride, forKey: Self.secondaryLabelKey) }
+        didSet { defaults.setOrRemove(secondaryLabelOverride, forKey: Self.secondaryLabelKey) }
     }
 
     var primaryLabelOverride: String? {
-        didSet { UserDefaults.standard.setOrRemove(primaryLabelOverride, forKey: Self.primaryLabelKey) }
+        didSet { defaults.setOrRemove(primaryLabelOverride, forKey: Self.primaryLabelKey) }
     }
 
     /// Derived-default label cache, keyed by zone identifier and validated against
@@ -104,18 +109,42 @@ final class ClockModel {
         Self.sanitizedLabel(primaryLabelOverride) ?? cachedDefaultLabel(for: primaryTimezone, at: date)
     }
 
+    // MARK: Zone selection
+
+    /// Commits a choice made in the zone picker. `nil` means the system zone,
+    /// which only the primary row offers; a nil pick on the secondary row is
+    /// ignored, as is an identifier no `TimeZone` recognizes.
+    ///
+    /// Picking the row that is already selected is a no-op, deliberately: the
+    /// commit clears that row's label override (so the field falls back to the
+    /// new zone's derived code), and re-picking the current city must not throw
+    /// away a code the user typed.
+    func commitZone(identifier: String?, isPrimary: Bool) {
+        if isPrimary {
+            guard primaryTimezoneIdentifier != identifier else { return }
+            primaryTimezoneIdentifier = identifier
+            primaryLabelOverride = nil
+        } else {
+            guard let identifier,
+                  let tz = TimeZone(identifier: identifier),
+                  tz.identifier != secondaryTimezone.identifier else { return }
+            secondaryTimezone = tz
+            secondaryLabelOverride = nil
+        }
+    }
+
     // MARK: Display settings
 
     var hour12: Bool {
-        didSet { UserDefaults.standard.set(hour12, forKey: Self.hour12Key) }
+        didSet { defaults.set(hour12, forKey: Self.hour12Key) }
     }
 
     var variant: GlyphVariant {
-        didSet { UserDefaults.standard.set(variant.rawValue, forKey: Self.variantKey) }
+        didSet { defaults.set(variant.rawValue, forKey: Self.variantKey) }
     }
 
     var blinkColon: Bool {
-        didSet { UserDefaults.standard.set(blinkColon, forKey: Self.blinkColonKey) }
+        didSet { defaults.set(blinkColon, forKey: Self.blinkColonKey) }
     }
 
     // MARK: System zone tracking
@@ -132,21 +161,22 @@ final class ClockModel {
 
     @ObservationIgnored private var systemZoneObserver: (any NSObjectProtocol)?
 
-    init() {
-        let savedId = UserDefaults.standard.string(forKey: Self.secondaryTimezoneKey)
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let savedId = defaults.string(forKey: Self.secondaryTimezoneKey)
         secondaryTimezone = savedId.flatMap(TimeZone.init(identifier:))
             ?? TimeZone(identifier: "Asia/Tokyo")
             ?? TimeZone.current
-        let primaryId = UserDefaults.standard.string(forKey: Self.primaryTimezoneKey)
+        let primaryId = defaults.string(forKey: Self.primaryTimezoneKey)
         primaryTimezoneIdentifier = primaryId
         // didSet does not fire during init — resolve the stored zone explicitly.
         primaryTimezone = Self.resolve(primaryId)
-        secondaryLabelOverride = UserDefaults.standard.string(forKey: Self.secondaryLabelKey)
-        primaryLabelOverride = UserDefaults.standard.string(forKey: Self.primaryLabelKey)
-        hour12 = UserDefaults.standard.bool(forKey: Self.hour12Key)
-        variant = UserDefaults.standard.string(forKey: Self.variantKey)
+        secondaryLabelOverride = defaults.string(forKey: Self.secondaryLabelKey)
+        primaryLabelOverride = defaults.string(forKey: Self.primaryLabelKey)
+        hour12 = defaults.bool(forKey: Self.hour12Key)
+        variant = defaults.string(forKey: Self.variantKey)
             .flatMap(GlyphVariant.init(rawValue:)) ?? .arc
-        blinkColon = UserDefaults.standard.bool(forKey: Self.blinkColonKey)
+        blinkColon = defaults.bool(forKey: Self.blinkColonKey)
 
         systemZoneObserver = NotificationCenter.default.addObserver(
             forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main
