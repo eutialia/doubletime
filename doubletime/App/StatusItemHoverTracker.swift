@@ -25,13 +25,23 @@ import AppKit
 final class StatusItemHoverTracker: NSResponder {
     private weak var view: NSView?
     private let onChange: (Bool) -> Void
+    /// The live pointer position in screen coordinates. Injected because
+    /// `NSEvent.mouseLocation` is the real cursor, which a test can neither
+    /// place nor read back — with this seam sync()'s hit-test can be driven
+    /// over a headless window.
+    private let pointerLocation: () -> NSPoint
     private var trackingArea: NSTrackingArea?
     private var spaceObserver: (any NSObjectProtocol)?
     private var screenParametersObserver: (any NSObjectProtocol)?
 
-    init(view: NSView, onChange: @escaping (Bool) -> Void) {
+    init(
+        view: NSView,
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+        onChange: @escaping (Bool) -> Void
+    ) {
         self.view = view
         self.onChange = onChange
+        self.pointerLocation = pointerLocation
         super.init()
         let trackingArea = NSTrackingArea(
             rect: .zero, // ignored with .inVisibleRect
@@ -89,7 +99,7 @@ final class StatusItemHoverTracker: NSResponder {
             onChange(false)
             return
         }
-        let point = view.convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        let point = view.convert(window.convertPoint(fromScreen: pointerLocation()), from: nil)
         onChange(view.bounds.contains(point))
     }
 

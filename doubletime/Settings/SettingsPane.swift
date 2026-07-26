@@ -13,7 +13,19 @@ import SwiftUI
 /// is the live preview.
 struct SettingsPane: View {
     @Bindable var clock: ClockModel
-    @State private var loginItem = LoginItemModel()
+    @State private var loginItem: LoginItemModel
+
+    /// `loginItem` is injectable so tests can drive the pane off a stubbed
+    /// `LoginItemService` instead of `SMAppService.mainApp` — without it the
+    /// pane's geometry (the extra `.requiresApproval` row) would depend on the
+    /// developer's real Login Items. Production passes nothing and gets the
+    /// real model. (`nil` rather than a `LoginItemModel()` default argument:
+    /// under the Swift 5 language mode a default expression is evaluated in the
+    /// caller's isolation, where a main-actor initializer is unreachable.)
+    @MainActor init(clock: ClockModel, loginItem: LoginItemModel? = nil) {
+        _clock = Bindable(wrappedValue: clock)
+        _loginItem = State(initialValue: loginItem ?? LoginItemModel())
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,7 +114,7 @@ struct SettingsPane: View {
                                 .font(DesignTokens.settingsCaption)
                                 .foregroundStyle(DesignTokens.textMuted)
                             Button("Open Login Items…") {
-                                LoginItemModel.openSystemSettings()
+                                loginItem.openSystemSettings()
                             }
                             .controlSize(.small)
                         }

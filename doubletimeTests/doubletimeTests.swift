@@ -9,107 +9,51 @@ import Testing
 @testable import doubletime
 
 struct doubletimeTests {
-    /// 2026-04-20 12:00:00 UTC — a DST-stable reference instant (PDT in effect
-    /// for Los Angeles).
-    private static let reference: Date = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return calendar.date(from: DateComponents(year: 2026, month: 4, day: 20, hour: 12))!
-    }()
-
-    private func timezone(_ identifier: String) -> TimeZone {
-        TimeZone(identifier: identifier)!
-    }
-
     // MARK: anchoredSweep (signed, from UTC offsets)
 
-    @Test func anchoredSweepHalfHourAhead() {
+    @Test(arguments: [
+        ("Asia/Kolkata", "America/Los_Angeles", 0.5, true),      // half hour ahead ⇒ clockwise
+        ("Asia/Kathmandu", "America/Los_Angeles", 0.75, true),   // three-quarter ahead ⇒ clockwise
+        ("America/Los_Angeles", "Asia/Kolkata", 0.5, false),     // half hour behind ⇒ counterclockwise
+        ("America/Los_Angeles", "Asia/Kathmandu", 0.75, false),  // three-quarter behind ⇒ counterclockwise
+        ("Asia/Tokyo", "America/Los_Angeles", 0.0, true),        // whole-hour offset ⇒ no fraction, still a deterministic direction
+    ])
+    func anchoredSweepFractionAndDirection(
+        secondaryId: String, primaryId: String, expectedFraction: Double, expectedClockwise: Bool
+    ) {
         let sweep = ClockModel.anchoredSweep(
-            secondary: timezone("Asia/Kolkata"),
-            primary: timezone("America/Los_Angeles"),
-            at: Self.reference
+            secondary: timezone(secondaryId),
+            primary: timezone(primaryId),
+            at: reference
         )
-        #expect(sweep.fraction == 0.5)
-        #expect(sweep.clockwise)
-    }
-
-    @Test func anchoredSweepThreeQuarterAhead() {
-        let sweep = ClockModel.anchoredSweep(
-            secondary: timezone("Asia/Kathmandu"),
-            primary: timezone("America/Los_Angeles"),
-            at: Self.reference
-        )
-        #expect(sweep.fraction == 0.75)
-        #expect(sweep.clockwise)
-    }
-
-    @Test func anchoredSweepHalfHourBehindIsCounterclockwise() {
-        let sweep = ClockModel.anchoredSweep(
-            secondary: timezone("America/Los_Angeles"),
-            primary: timezone("Asia/Kolkata"),
-            at: Self.reference
-        )
-        #expect(sweep.fraction == 0.5)
-        #expect(!sweep.clockwise)
-    }
-
-    @Test func anchoredSweepThreeQuarterBehindIsCounterclockwise() {
-        let sweep = ClockModel.anchoredSweep(
-            secondary: timezone("America/Los_Angeles"),
-            primary: timezone("Asia/Kathmandu"),
-            at: Self.reference
-        )
-        #expect(sweep.fraction == 0.75)
-        #expect(!sweep.clockwise)
-    }
-
-    @Test func anchoredSweepWholeHourHasNoFraction() {
-        let sweep = ClockModel.anchoredSweep(
-            secondary: timezone("Asia/Tokyo"),
-            primary: timezone("America/Los_Angeles"),
-            at: Self.reference
-        )
-        #expect(sweep.fraction == 0.0)
+        #expect(sweep.fraction == expectedFraction)
+        #expect(sweep.clockwise == expectedClockwise)
     }
 
     // MARK: 24-hour formatting
 
-    @Test func hourRendersMidnightAsDoubleZero() {
-        // 12:00 UTC is 00:00 in a UTC+12 zone (no DST) — "24" must render "00".
-        let hour = ClockModel.hour(for: timezone("Pacific/Wallis"), at: Self.reference)
-        #expect(hour == "00")
-    }
-
-    @Test func hourIsZeroPadded() {
-        // 12:00 UTC is 21:00 JST and 05:00 in Los Angeles (PDT, UTC-7).
-        #expect(ClockModel.hour(for: timezone("Asia/Tokyo"), at: Self.reference) == "21")
-        #expect(ClockModel.hour(for: timezone("America/Los_Angeles"), at: Self.reference) == "05")
+    @Test(arguments: [
+        ("Pacific/Wallis", "00"),        // 12:00 UTC is 00:00 in a UTC+12 zone (no DST) — "24" must render "00".
+        ("Asia/Tokyo", "21"),            // 12:00 UTC is 21:00 JST.
+        ("America/Los_Angeles", "05"),   // 12:00 UTC is 05:00 in Los Angeles (PDT, UTC-7).
+    ])
+    func hourIsZeroPaddedAndWrapsMidnightToDoubleZero(timezoneId: String, expectedHour: String) {
+        #expect(ClockModel.hour(for: timezone(timezoneId), at: reference) == expectedHour)
     }
 
     // MARK: 12-hour mapping
 
-    @Test func hour12MapsMidnightToTwelveAM() {
-        // Pacific/Wallis (UTC+12, no DST) is 00:00 at the reference instant.
-        #expect(ClockModel.hour12(for: timezone("Pacific/Wallis"), at: Self.reference) == "12")
-        #expect(ClockModel.period(for: timezone("Pacific/Wallis"), at: Self.reference) == .am)
-    }
-
-    @Test func hour12MapsNoonToTwelvePM() {
-        // UTC is 12:00 at the reference instant.
-        #expect(ClockModel.hour12(for: timezone("UTC"), at: Self.reference) == "12")
-        #expect(ClockModel.period(for: timezone("UTC"), at: Self.reference) == .pm)
-    }
-
-    @Test func hour12MapsThirteenToOnePM() {
-        // Etc/GMT-1 is UTC+1 (sign inverted) — 13:00 at the reference instant.
-        #expect(ClockModel.hour12(for: timezone("Etc/GMT-1"), at: Self.reference) == "01")
-        #expect(ClockModel.period(for: timezone("Etc/GMT-1"), at: Self.reference) == .pm)
-    }
-
-    @Test func hour12MapsFiveToFiveAM() {
-        // Los Angeles (PDT) is 05:00 at the reference instant.
-        #expect(ClockModel.hour12(for: timezone("America/Los_Angeles"), at: Self.reference) == "05")
-        #expect(ClockModel.period(for: timezone("America/Los_Angeles"), at: Self.reference) == .am)
+    @Test(arguments: [
+        ("Pacific/Wallis", "12", ClockModel.Period.am),        // UTC+12, no DST — 00:00 at the reference instant.
+        ("UTC", "12", ClockModel.Period.pm),                   // UTC is 12:00 at the reference instant.
+        ("Etc/GMT-1", "01", ClockModel.Period.pm),             // Etc/GMT-1 is UTC+1 (sign inverted) — 13:00 at the reference instant.
+        ("America/Los_Angeles", "05", ClockModel.Period.am),   // Los Angeles (PDT) is 05:00 at the reference instant.
+    ])
+    func hour12MapsTwentyFourHourToTwelveHourWithPeriod(
+        timezoneId: String, expectedHour: String, expectedPeriod: ClockModel.Period
+    ) {
+        #expect(ClockModel.hour12(for: timezone(timezoneId), at: reference) == expectedHour)
+        #expect(ClockModel.period(for: timezone(timezoneId), at: reference) == expectedPeriod)
     }
 
     // MARK: Segmented snap
@@ -129,16 +73,9 @@ struct doubletimeTests {
 
     // MARK: Default label
 
-    /// Noon UTC in each season — DST is in effect in July, not January.
-    private func instant(year: Int = 2026, month: Int, day: Int) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
-    }
-
     @Test func defaultLabelUsesDictionaryAbbreviationBothSeasons() {
-        let jan = instant(month: 1, day: 15)
-        let jul = instant(month: 7, day: 15)
+        let jan = utcInstant(month: 1, day: 15, hour: 12)
+        let jul = utcInstant(month: 7, day: 15, hour: 12)
         // Kolkata/Tokyo have no DST; abbreviation(for:) returns an offset string,
         // so the purely-alphabetic dictionary entry wins in both seasons.
         #expect(ClockModel.defaultLabel(for: timezone("Asia/Kolkata"), at: jan) == "IST")
@@ -149,42 +86,39 @@ struct doubletimeTests {
 
     @Test func defaultLabelIsDaylightSavingAware() {
         // New_York: EST in winter, EDT in summer (abbreviation(for:) is alphabetic).
-        #expect(ClockModel.defaultLabel(for: timezone("America/New_York"), at: instant(month: 1, day: 15)) == "EST")
-        #expect(ClockModel.defaultLabel(for: timezone("America/New_York"), at: instant(month: 7, day: 15)) == "EDT")
+        #expect(ClockModel.defaultLabel(for: timezone("America/New_York"), at: utcInstant(month: 1, day: 15, hour: 12)) == "EST")
+        #expect(ClockModel.defaultLabel(for: timezone("America/New_York"), at: utcInstant(month: 7, day: 15, hour: 12)) == "EDT")
         // London: GMT in winter (alphabetic abbreviation), BST in summer (its
         // summer abbreviation is an offset string, so the dictionary entry wins).
-        #expect(ClockModel.defaultLabel(for: timezone("Europe/London"), at: instant(month: 1, day: 15)) == "GMT")
-        #expect(ClockModel.defaultLabel(for: timezone("Europe/London"), at: instant(month: 7, day: 15)) == "BST")
+        #expect(ClockModel.defaultLabel(for: timezone("Europe/London"), at: utcInstant(month: 1, day: 15, hour: 12)) == "GMT")
+        #expect(ClockModel.defaultLabel(for: timezone("Europe/London"), at: utcInstant(month: 7, day: 15, hour: 12)) == "BST")
     }
 
     @Test func defaultLabelFallsBackToCityPrefix() {
         // Kathmandu has no alphabetic abbreviation and no dictionary entry.
-        #expect(ClockModel.defaultLabel(for: timezone("Asia/Kathmandu"), at: Self.reference) == "KAT")
+        #expect(ClockModel.defaultLabel(for: timezone("Asia/Kathmandu"), at: reference) == "KAT")
     }
 
     // MARK: Label sanitizer
 
-    @Test func sanitizedLabelClampsAndUppercases() {
-        #expect(ClockModel.sanitizedLabel("Tokyo Office") == "TOKYO")
-        #expect(ClockModel.sanitizedLabel("pacific") == "PACIF")
-    }
-
-    @Test func sanitizedLabelStripsSymbolsAndEmoji() {
-        #expect(ClockModel.sanitizedLabel("N.Y.C!") == "NYC")
-        #expect(ClockModel.sanitizedLabel("🕐JST") == "JST")
-    }
-
-    @Test func sanitizedLabelEmptyBecomesNil() {
-        #expect(ClockModel.sanitizedLabel(nil) == nil)
-        #expect(ClockModel.sanitizedLabel("   ") == nil)
-        #expect(ClockModel.sanitizedLabel("···") == nil)
+    @Test(arguments: [
+        ("Tokyo Office", "TOKYO"),  // clamps to 5 chars and uppercases
+        ("pacific", "PACIF"),       // clamps to 5 chars and uppercases
+        ("N.Y.C!", "NYC"),          // strips symbols
+        ("🕐JST", "JST"),           // strips emoji
+        (nil, nil),                 // nil stays nil
+        ("   ", nil),               // pure whitespace becomes nil
+        ("···", nil),               // pure symbols become nil
+    ])
+    func sanitizedLabel(input: String?, expected: String?) {
+        #expect(ClockModel.sanitizedLabel(input) == expected)
     }
 
     @Test func resolvedLabelSanitizesStaleOverride() {
         // A persisted pre-v2 override is repaired at resolve time…
-        #expect(ClockModel.resolvedLabel(override: "Tokyo Office", for: timezone("Asia/Tokyo"), at: Self.reference) == "TOKYO")
+        #expect(ClockModel.resolvedLabel(override: "Tokyo Office", for: timezone("Asia/Tokyo"), at: reference) == "TOKYO")
         // …and an empty/whitespace override falls through to the derived default.
-        #expect(ClockModel.resolvedLabel(override: "  ", for: timezone("Asia/Tokyo"), at: Self.reference) == "JST")
+        #expect(ClockModel.resolvedLabel(override: "  ", for: timezone("Asia/Tokyo"), at: reference) == "JST")
     }
 
     // MARK: Offset minutes (sign convention)
@@ -194,9 +128,9 @@ struct doubletimeTests {
         // reference instant; the reverse is negative.
         let kolkata = timezone("Asia/Kolkata")
         let la = timezone("America/Los_Angeles")
-        #expect(ClockModel.offsetMinutes(from: kolkata, to: la, at: Self.reference) == 750)
-        #expect(ClockModel.offsetMinutes(from: la, to: kolkata, at: Self.reference) == -750)
-        #expect(ClockModel.offsetMinutes(from: la, to: la, at: Self.reference) == 0)
+        #expect(ClockModel.offsetMinutes(from: kolkata, to: la, at: reference) == 750)
+        #expect(ClockModel.offsetMinutes(from: la, to: kolkata, at: reference) == -750)
+        #expect(ClockModel.offsetMinutes(from: la, to: la, at: reference) == 0)
     }
 
     // MARK: Offset captions
@@ -245,15 +179,15 @@ struct doubletimeTests {
 
     @Test func dateLabelPutsDayBeforeMonth() {
         // Canon shape: `Mon 20 Apr`, matching the 24-hour digits' reading order.
-        #expect(ClockModel.dateLabel(for: timezone("America/Los_Angeles"), at: Self.reference) == "Mon 20 Apr")
+        #expect(ClockModel.dateLabel(for: timezone("America/Los_Angeles"), at: reference) == "Mon 20 Apr")
         // 12:00 UTC is already the 21st in Auckland (UTC+12).
-        #expect(ClockModel.dateLabel(for: timezone("Pacific/Auckland"), at: Self.reference) == "Tue 21 Apr")
+        #expect(ClockModel.dateLabel(for: timezone("Pacific/Auckland"), at: reference) == "Tue 21 Apr")
     }
 
     @Test func dateLabelIsFixedNotLocalized() throws {
         // A localized style would reorder to `Mon, Apr 20` and add a comma; the
         // verbatim style must not, whatever locale the host happens to run under.
-        let label = ClockModel.dateLabel(for: timezone("UTC"), at: Self.reference)
+        let label = ClockModel.dateLabel(for: timezone("UTC"), at: reference)
         let day = try #require(label.range(of: "20"))
         let month = try #require(label.range(of: "Apr"))
         #expect(day.lowerBound < month.lowerBound)
@@ -266,48 +200,46 @@ struct doubletimeTests {
         // 12:00 UTC — Auckland is already the 21st, Los Angeles still the 20th.
         let auckland = timezone("Pacific/Auckland")
         let la = timezone("America/Los_Angeles")
-        #expect(ClockModel.dayDelta(from: auckland, to: la, at: Self.reference) == 1)
-        #expect(ClockModel.dayDelta(from: la, to: auckland, at: Self.reference) == -1)
-        #expect(ClockModel.dayDelta(from: la, to: la, at: Self.reference) == 0)
+        #expect(ClockModel.dayDelta(from: auckland, to: la, at: reference) == 1)
+        #expect(ClockModel.dayDelta(from: la, to: auckland, at: reference) == -1)
+        #expect(ClockModel.dayDelta(from: la, to: la, at: reference) == 0)
     }
 
     @Test func dayDeltaIsZeroForALargeSameDayOffset() {
         // Kolkata is 750 minutes ahead of LA yet the calendar day is the same —
         // the delta must come from the dates, not from the offset's magnitude.
-        #expect(ClockModel.offsetMinutes(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: Self.reference) == 750)
-        #expect(ClockModel.dayDelta(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: Self.reference) == 0)
+        #expect(ClockModel.offsetMinutes(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: reference) == 750)
+        #expect(ClockModel.dayDelta(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: reference) == 0)
     }
 
     @Test func dayDeltaSurvivesADstTransition() throws {
         // 2026-03-08 10:30 UTC: Los Angeles has just sprung forward to PDT
         // (02:30 local), London is still on GMT (10:30). Same calendar day, and
         // the zone whose clock jumped must not read as a day apart.
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone("UTC")
-        let springForward = try #require(
-            calendar.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 10, minute: 30))
-        )
+        let springForward = utcInstant(month: 3, day: 8, hour: 10, minute: 30)
         #expect(ClockModel.dayDelta(from: timezone("Europe/London"), to: timezone("America/Los_Angeles"), at: springForward) == 0)
         #expect(ClockModel.dateLabel(for: timezone("America/Los_Angeles"), at: springForward) == "Sun 08 Mar")
     }
 
-    @Test func dayDeltaReachesTwoDaysAcrossTheFullZoneSpan() throws {
+    @Test func dayDeltaReachesTwoDaysAcrossTheFullZoneSpan() {
         // The zone span is 26 hours, not 24: at 10:00 UTC, Kiritimati (UTC+14) is
         // 00:00 on the 21st while Midway (UTC−11) is still 23:00 on the 19th. The
         // row must not describe that as "next day".
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone("UTC")
-        let instant = try #require(
-            calendar.date(from: DateComponents(year: 2026, month: 4, day: 20, hour: 10))
-        )
+        let instant = utcInstant(month: 4, day: 20, hour: 10)
         let kiritimati = timezone("Pacific/Kiritimati")
         let midway = timezone("Pacific/Midway")
         #expect(ClockModel.dayDelta(from: kiritimati, to: midway, at: instant) == 2)
-        #expect(ClockModel.spokenDayDelta(2) == "2 days later")
-        #expect(ClockModel.spokenDayDelta(-2) == "2 days earlier")
-        #expect(ClockModel.spokenDayDelta(1) == "next day")
-        #expect(ClockModel.spokenDayDelta(-1) == "previous day")
-        #expect(ClockModel.spokenDayDelta(0) == nil)
+    }
+
+    @Test(arguments: [
+        (2, "2 days later"),
+        (-2, "2 days earlier"),
+        (1, "next day"),
+        (-1, "previous day"),
+        (0, nil),
+    ])
+    func spokenDayDelta(delta: Int, expected: String?) {
+        #expect(ClockModel.spokenDayDelta(delta) == expected)
     }
 
     // MARK: Status menu rows
@@ -319,9 +251,9 @@ struct doubletimeTests {
             code: "NZST",
             hour12: false,
             isPrimary: false,
-            offsetMinutes: ClockModel.offsetMinutes(from: auckland, to: timezone("America/Los_Angeles"), at: Self.reference),
+            offsetMinutes: ClockModel.offsetMinutes(from: auckland, to: timezone("America/Los_Angeles"), at: reference),
             dayDelta: 1,
-            at: Self.reference
+            at: reference
         )
         #expect(row.city == "Auckland")
         #expect(row.time == "00:00")
@@ -335,7 +267,7 @@ struct doubletimeTests {
         let row = StatusMenuZone.make(
             timezone: timezone("America/Los_Angeles"),
             code: "PDT", hour12: false, isPrimary: true,
-            offsetMinutes: nil, dayDelta: 0, at: Self.reference
+            offsetMinutes: nil, dayDelta: 0, at: reference
         )
         #expect(row.offset == nil)
         #expect(row.isPrimary)
@@ -348,7 +280,7 @@ struct doubletimeTests {
         let row = StatusMenuZone.make(
             timezone: timezone("America/Los_Angeles"),
             code: "PDT", hour12: true, isPrimary: true,
-            offsetMinutes: nil, dayDelta: 0, at: Self.reference
+            offsetMinutes: nil, dayDelta: 0, at: reference
         )
         #expect(row.time == "05:00")
         #expect(row.period == .am)
@@ -360,7 +292,7 @@ struct doubletimeTests {
         let row = StatusMenuZone.make(
             timezone: timezone("Pacific/Auckland"),
             code: "NZST", hour12: false, isPrimary: false,
-            offsetMinutes: 1140, dayDelta: 1, at: Self.reference
+            offsetMinutes: 1140, dayDelta: 1, at: reference
         )
         #expect(row.accessibilityLabel.contains("Auckland"))
         #expect(row.accessibilityLabel.contains("ahead"))
@@ -374,22 +306,12 @@ struct doubletimeTests {
     @Test func minuteRendersZoneWallClock() {
         // 12:00 UTC → Kathmandu (UTC+5:45) 17:45, Kolkata (UTC+5:30) 17:30,
         // Los Angeles (PDT) 05:00.
-        #expect(ClockModel.minute(for: timezone("Asia/Kathmandu"), at: Self.reference) == "45")
-        #expect(ClockModel.minute(for: timezone("Asia/Kolkata"), at: Self.reference) == "30")
-        #expect(ClockModel.minute(for: timezone("America/Los_Angeles"), at: Self.reference) == "00")
+        #expect(ClockModel.minute(for: timezone("Asia/Kathmandu"), at: reference) == "45")
+        #expect(ClockModel.minute(for: timezone("Asia/Kolkata"), at: reference) == "30")
+        #expect(ClockModel.minute(for: timezone("America/Los_Angeles"), at: reference) == "00")
     }
 
     // MARK: Hover (secondary-minute swap)
-
-    /// A quarter-hour pair (Kathmandu +5:45 over PDT) so BOTH minute digits
-    /// differ between the zones — the strongest swap exercise.
-    private func hoverGlyph(hovered: Bool, secondaryId: String = "Asia/Kathmandu") -> some View {
-        TimeGlyph(
-            secondaryLabel: "KAT", secondaryTimezone: timezone(secondaryId),
-            primaryLabel: "PDT", primaryTimezone: timezone("America/Los_Angeles"),
-            now: Self.reference, variant: .arc, hovered: hovered
-        )
-    }
 
     /// Hover must swap the trailing minute (pixels change) WITHOUT changing
     /// the rendered footprint — the status item length must never move.
@@ -402,18 +324,18 @@ struct doubletimeTests {
         }
         let plain = try render(hovered: false)
         let hovered = try render(hovered: true)
-        #expect(plain.tiffRepresentation != hovered.tiffRepresentation)
+        #expect(try pixelData(of: plain) != pixelData(of: hovered))
         #expect(plain.size == hovered.size)
     }
 
     /// A whole-hour pair draws no indicator, and hover must be a complete
     /// no-op — pixel-identical output.
     @Test @MainActor func hoverIsNoOpForWholeHourPair() throws {
-        func render(hovered: Bool) throws -> Data? {
+        func render(hovered: Bool) throws -> Data {
             let raster = StatusItemRaster(scale: 1) {
                 hoverGlyph(hovered: hovered, secondaryId: "Asia/Tokyo")
             }
-            return try #require(raster.rasterize(pixelScale: 4)).tiffRepresentation
+            return try pixelData(of: raster.rasterize(pixelScale: 4))
         }
         #expect(try render(hovered: false) == render(hovered: true))
     }
@@ -460,34 +382,47 @@ struct doubletimeTests {
         #expect(abs(start.y - 0) < 0.15)
     }
 
-    @Test @MainActor func perimeterLengthMatchesFormula() {
+    /// Cross-checks `CellPerimeter.perimeterLength` against the path SwiftUI
+    /// actually draws, not against a copy of its own formula (which could
+    /// never fail): sample `trimmedPath(from:to:)` at ~200 evenly spaced `t`
+    /// and sum the resulting chord lengths. Trim is proportional to arc
+    /// length, so this reconstructs the true perimeter length. The formula
+    /// sizes segmented-tick dash patterns, so it must track the drawn path
+    /// exactly.
+    @Test @MainActor func perimeterLengthMatchesFormula() throws {
         let rect = CGRect(origin: .zero, size: DesignTokens.cellSize)
-        let r = DesignTokens.cellCornerRadius
-        let expected = 2 * (rect.width + rect.height) - 8 * r + 2 * .pi * r
-        #expect(abs(CellPerimeter.perimeterLength(in: rect) - expected) < 0.001)
+        let path = CellPerimeter().path(in: rect)
+
+        let sampleCount = 200
+        var measuredLength: CGFloat = 0
+        var previousPoint: CGPoint?
+        for i in 0...sampleCount {
+            let t = max(Double(i) / Double(sampleCount), 0.0001)
+            let point = try #require(path.trimmedPath(from: 0, to: t).currentPoint)
+            if let previousPoint {
+                let dx = point.x - previousPoint.x
+                let dy = point.y - previousPoint.y
+                measuredLength += (dx * dx + dy * dy).squareRoot()
+            }
+            previousPoint = point
+        }
+
+        let formulaLength = CellPerimeter.perimeterLength(in: rect)
+        #expect(abs(formulaLength - measuredLength) < 0.1)
     }
 
     /// The indicator ring must draw inside (or flush with) the cell bounds —
     /// never past them, where macOS would clip it — and stay concentric.
+    /// These guard the currently tuned token VALUES (re-tuning arcLineWidth,
+    /// indicatorExtraInset, or cellCornerRadius must not silently violate the
+    /// invariant); they deliberately don't re-derive DesignTokens' own
+    /// formulas, which would be tautological and could never fail.
     @Test @MainActor func indicatorRingStaysConcentricInsideCell() {
-        // Outer stroke edge sits indicatorExtraInset inside the cell edge (≥ 0
-        // ⇒ the stroke never escapes the cell bounds; 0 = flush).
-        #expect(abs((DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2)
-                    - DesignTokens.indicatorExtraInset) < 1e-9)
+        // Outer stroke edge stays inside the cell edge (≥ 0 ⇒ the stroke never
+        // escapes the cell bounds; 0 = flush).
         #expect(DesignTokens.indicatorInset - DesignTokens.arcLineWidth / 2 >= 0)
         // Concentric radius stays positive (the max(_, 0) floor is never hit).
         #expect(DesignTokens.indicatorCornerRadius > 0)
-        #expect(abs(DesignTokens.indicatorCornerRadius
-                    - (DesignTokens.cellCornerRadius - DesignTokens.indicatorInset)) < 1e-9)
-    }
-
-    /// Exemplar glyph shared by the rendering tests below.
-    private var exemplarGlyph: some View {
-        TimeGlyph(
-            secondaryLabel: "PDT", secondaryTimezone: timezone("America/Los_Angeles"),
-            primaryLabel: "IST", primaryTimezone: timezone("Asia/Kolkata"),
-            now: Self.reference, variant: .arc
-        )
     }
 
     /// Regression guard for the settings exemplars: GlyphChip shows whatever
@@ -503,10 +438,8 @@ struct doubletimeTests {
         #expect(produced.size.height == DesignTokens.statusItemHeight)
         #expect(produced.size.width > 0)
 
-        let reference = ImageRenderer(content: exemplarGlyph.statusItemStrip())
-        reference.scale = pixelScale
-        let referenceImage = try #require(reference.nsImage)
-        #expect(produced.tiffRepresentation == referenceImage.tiffRepresentation)
+        #expect(try pixelData(of: produced)
+                 == pixelData(of: exemplarGlyph.statusItemStrip(), scale: pixelScale))
     }
 
     /// The documented core invariant, verified on real pixels: the zone label's
@@ -568,56 +501,5 @@ struct doubletimeTests {
         // Ink must not touch the strip edges (a touching row means clipping).
         #expect(firstInkRow > 0, "label ink clips at the status button top")
         #expect(lastInkRow < scan.height - 1, "cell ink clips at the status button bottom")
-    }
-}
-
-/// Rasterizes a view once and answers "is this pixel dense ink?" for the
-/// pixel-scanning tests. The ink threshold is DERIVED from DesignTokens —
-/// midway between the brightest chip-fill alpha and the dimmest ink alpha
-/// (secondary label / dim ring mark) — so re-tuned opacities can't silently
-/// blind the scans.
-@MainActor private struct RasterScan {
-    /// Rendering density shared by all scans (16 subpixels per point).
-    static let pixelScale: CGFloat = 16
-
-    let width: Int
-    let height: Int
-    private let data: Data
-    private let bytesPerRow: Int
-    private let bytesPerPixel: Int
-    /// Opaque backdrop the view was composited onto; nil ⇒ transparent
-    /// background, ink is judged by the alpha channel instead of luminance.
-    private let background: Int?
-
-    init(of view: some View, compositedOn background: Int? = nil) throws {
-        let renderer = ImageRenderer(content: view)
-        renderer.scale = Self.pixelScale
-        let image = try #require(renderer.cgImage)
-        width = image.width
-        height = image.height
-        data = try #require(image.dataProvider?.data as Data?)
-        bytesPerRow = image.bytesPerRow
-        bytesPerPixel = image.bitsPerPixel / 8
-        self.background = background
-    }
-
-    /// Alpha midway between the faint cell fill and the dimmest dense ink.
-    private var inkAlphaThreshold: Double {
-        let fill = DesignTokens.chipFillAlpha(isPrimary: false, colorScheme: .dark)
-        let ink = min(DesignTokens.secondaryLabelOpacity,
-                      DesignTokens.markOpacity(isDim: true, colorScheme: .dark))
-        return (fill + ink) / 2
-    }
-
-    /// True when the pixel carries dense ink (zone label, digits, or the
-    /// indicator ring) rather than background or the faint cell fill.
-    func isInk(_ x: Int, _ y: Int) -> Bool {
-        let offset = y * bytesPerRow + x * bytesPerPixel
-        if let background {
-            // White ink at alpha a over gray b has luminance b + a(255 − b).
-            let luminance = (Int(data[offset]) + Int(data[offset + 1]) + Int(data[offset + 2])) / 3
-            return Double(luminance) > Double(background) + inkAlphaThreshold * Double(255 - background)
-        }
-        return Double(data[offset + 3]) > inkAlphaThreshold * 255
     }
 }

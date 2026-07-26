@@ -65,7 +65,9 @@ struct ZoneRowControl: View {
                 includeSystemRow: isPrimary,
                 currentIdentifier: isPrimary ? clock.primaryTimezoneIdentifier : clock.secondaryTimezone.identifier
             ) { identifier in
-                commitZone(identifier)
+                // Changing the city clears the label override (the field then
+                // shows the new zone's derived code) — see ClockModel.
+                clock.commitZone(identifier: identifier, isPrimary: isPrimary)
                 showPicker = false
             }
         }
@@ -107,20 +109,5 @@ struct ZoneRowControl: View {
     private func setOverride(_ value: String?) {
         if isPrimary { clock.primaryLabelOverride = value }
         else { clock.secondaryLabelOverride = value }
-    }
-
-    /// Changing the city clears the label override (the field then shows the new
-    /// zone's derived code). nil identifier ⇒ the system zone (primary only).
-    private func commitZone(_ identifier: String?) {
-        if isPrimary {
-            if clock.primaryTimezoneIdentifier != identifier {
-                clock.primaryTimezoneIdentifier = identifier
-                clock.primaryLabelOverride = nil
-            }
-        } else if let identifier, let tz = TimeZone(identifier: identifier),
-                  tz.identifier != clock.secondaryTimezone.identifier {
-            clock.secondaryTimezone = tz
-            clock.secondaryLabelOverride = nil
-        }
     }
 }
