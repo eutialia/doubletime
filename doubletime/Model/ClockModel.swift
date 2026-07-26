@@ -167,7 +167,15 @@ final class ClockModel {
         secondaryTimezone = savedId.flatMap(TimeZone.init(identifier:))
             ?? TimeZone(identifier: "Asia/Tokyo")
             ?? TimeZone.current
-        let primaryId = defaults.string(forKey: Self.primaryTimezoneKey)
+        // Self-heal a stale persisted primary id (e.g. an identifier tzdata has
+        // since retired): an unresolvable pin would silently follow the system
+        // anyway, so become "System" deliberately — `primaryIsSystem` then tells
+        // the truth and the settings dropdown shows a real selection.
+        let savedPrimaryId = defaults.string(forKey: Self.primaryTimezoneKey)
+        let primaryId = savedPrimaryId.flatMap { TimeZone(identifier: $0) != nil ? $0 : nil }
+        if savedPrimaryId != nil, primaryId == nil {
+            defaults.removeObject(forKey: Self.primaryTimezoneKey)
+        }
         primaryTimezoneIdentifier = primaryId
         // didSet does not fire during init — resolve the stored zone explicitly.
         primaryTimezone = Self.resolve(primaryId)
