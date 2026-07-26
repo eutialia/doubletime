@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var hostingView: NSHostingView<StatusBarView>!
     private var hoverTracker: StatusItemHoverTracker?
+    private var statusMenu: StatusMenuController?
     /// Gates the hover flag while the item's menu is up (see the tracker
     /// closure): tracking events must not resurface the swap behind the menu.
     private var menuIsOpen = false
@@ -56,41 +57,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        let menu = NSMenu()
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-        menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit Doubletime", action: #selector(quitApp), keyEquivalent: "q")
-        quitItem.target = self
-        menu.addItem(quitItem)
-        statusItem.menu = menu
-        menu.delegate = self
+        // AppKit guarantees neither a mouseExited when the menu captures the
+        // pointer nor a mouseEntered if the pointer is still over the item when
+        // the menu closes — force-sync hover around the menu's lifetime.
+        let statusMenu = StatusMenuController(
+            clock: clock,
+            onOpen: { [weak self] in
+                guard let self else { return }
+                menuIsOpen = true
+                if clock.statusItemHovered {
+                    clock.statusItemHovered = false
+                }
+            },
+            onClose: { [weak self] in
+                guard let self else { return }
+                menuIsOpen = false
+                hoverTracker?.sync()
+            },
+            onSettings: { [weak self] in self?.openSettings() },
+            onQuit: { NSApplication.shared.terminate(nil) }
+        )
+        self.statusMenu = statusMenu
+        statusItem.menu = statusMenu.menu
     }
 
-    @objc private func openSettings() {
+    private func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .openAppSettings, object: nil)
-    }
-
-    @objc private func quitApp() {
-        NSApplication.shared.terminate(nil)
-    }
-}
-
-extension AppDelegate: NSMenuDelegate {
-    // AppKit guarantees neither a mouseExited when the menu captures the
-    // pointer nor a mouseEntered if the pointer is still over the item when
-    // the menu closes — force-sync hover around the menu's lifetime.
-    func menuWillOpen(_ menu: NSMenu) {
-        menuIsOpen = true
-        if clock.statusItemHovered {
-            clock.statusItemHovered = false
-        }
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        menuIsOpen = false
-        hoverTracker?.sync()
     }
 }

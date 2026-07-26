@@ -28,6 +28,19 @@ final class ClockModel {
     /// per call (to set `timeZone`) triggers a CoW allocation on the hot path.
     private nonisolated static let gregorian = Calendar(identifier: .gregorian)
 
+    /// A UTC-anchored calendar used to difference two zones' calendar days
+    /// without their offsets interfering. Shared for the same CoW reason.
+    private nonisolated static let utcGregorian: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        return calendar
+    }()
+
+    /// Pinned locale for the verbatim styles. Weekday and month names are the
+    /// only formatted output that is not pure digits, and a nil locale renders
+    /// them as raw field codes ("M02" instead of "Feb").
+    private nonisolated static let fixedLocale = Locale(identifier: "en_US_POSIX")
+
     // MARK: Zones
 
     var secondaryTimezone: TimeZone {
@@ -213,6 +226,98 @@ final class ClockModel {
         (from.secondsFromGMT(for: date) - to.secondsFromGMT(for: date)) / 60
     }
 
+    /// How a signed zone offset renders. Both shapes share one implementation so
+    /// the sign glyph and the zero-padded minutes cannot drift apart.
+    nonisolated enum OffsetStyle {
+        /// Collapses the common cases — `same`, `+5h`, `+5:30`. The zone picker
+        /// scans hundreds of rows, where the shorter string reads faster.
+        case terse
+        /// Always `+5:30` / `−2:00`, including `+0:00`. A fixed-shape caption, so
+        /// the status menu's row never reflows as zones or DST change.
+        case exact
+    }
+
+    /// The signed offset caption. U+2212 MINUS, not a hyphen, so the sign shares
+    /// the width and weight of the tabular digits it sits beside.
+    nonisolated static func offsetCaption(minutes: Int, style: OffsetStyle) -> String {
+        if style == .terse, minutes == 0 { return "same" }
+        let sign = minutes < 0 ? "\u{2212}" : "+"
+        let magnitude = abs(minutes)
+        let hours = magnitude / 60
+        let remainder = magnitude % 60
+        if style == .terse, remainder == 0 { return "\(sign)\(hours)h" }
+        // Pinned locale: the hours are interpolated verbatim, so leaving the
+        // minutes on Locale.current would render "+5:٣٠" under a region whose
+        // numbering system is not Latin.
+        let padded = remainder.formatted(
+            .number.precision(.integerLength(2)).locale(fixedLocale)
+        )
+        return "\(sign)\(hours):\(padded)"
+    }
+
+    /// The offset as VoiceOver should say it — "5 hours, 30 minutes ahead". The
+    /// visible `+5:30` is a glyph, not a phrase; read aloud it means nothing.
+    /// Locale-pinned for the same reason `dateLabel` is: the app is English-only,
+    /// and a localized magnitude next to the hardcoded "ahead" would read as half
+    /// a translation.
+    nonisolated static func spokenOffset(minutes: Int) -> String {
+        guard minutes != 0 else { return "same time" }
+        let magnitude = Duration.seconds(abs(minutes) * 60).formatted(
+            .units(allowed: [.hours, .minutes], width: .wide, zeroValueUnits: .hide)
+                .locale(fixedLocale)
+        )
+        return "\(magnitude) \(minutes > 0 ? "ahead" : "behind")"
+    }
+
+    /// How a day difference reads aloud. The visible `+1d` badge is a glyph, and
+    /// the magnitude is not always 1 — see `dayDelta`.
+    nonisolated static func spokenDayDelta(_ delta: Int) -> String? {
+        switch delta {
+        case 0: nil
+        case 1: "next day"
+        case -1: "previous day"
+        default: "\(abs(delta)) days \(delta > 0 ? "later" : "earlier")"
+        }
+    }
+
+    // MARK: Dates
+
+    /// `Mon 20 Apr` in a zone — day before month, matching the reading order of
+    /// the 24-hour digits. Deliberately fixed rather than localized: a localized
+    /// style reorders to `Mon, Apr 20` in en_US and loses the canon shape (the
+    /// app carries no localizations, so nothing else is given up).
+    nonisolated static func dateLabel(for tz: TimeZone, at date: Date) -> String {
+        date.formatted(
+            Date.VerbatimFormatStyle(
+                format: "\(weekday: .abbreviated) \(day: .twoDigits) \(month: .abbreviated)",
+                locale: fixedLocale,
+                timeZone: tz,
+                calendar: gregorian
+            )
+        )
+    }
+
+    /// Whole calendar days `from`'s local date is ahead of `to`'s at the same
+    /// instant. Usually −1, 0 or +1, but the zone span is 26 hours, not 24, so ±2
+    /// is reachable: at 10:00 UTC, Pacific/Kiritimati (UTC+14) is already 00:00 on
+    /// the next day while Pacific/Midway (UTC−11) is still 23:00 on the previous
+    /// one. Derived from each zone's date components rather than from the offset
+    /// in minutes, which gets DST-transition days and 45-minute zones wrong.
+    nonisolated static func dayDelta(from: TimeZone, to: TimeZone, at date: Date) -> Int {
+        let anchor = utcAnchoredDay(for: to, at: date)
+        let subject = utcAnchoredDay(for: from, at: date)
+        return utcGregorian.dateComponents([.day], from: anchor, to: subject).day ?? 0
+    }
+
+    /// The zone's calendar day at `date`, re-anchored to UTC midnight so two
+    /// zones' days can be differenced with their offsets factored out.
+    private nonisolated static func utcAnchoredDay(for tz: TimeZone, at date: Date) -> Date {
+        let components = gregorian.dateComponents(in: tz, from: date)
+        return utcGregorian.date(
+            from: DateComponents(year: components.year, month: components.month, day: components.day)
+        ) ?? date
+    }
+
     // MARK: Anchored sweep
 
     /// The signed sub-hour offset between the two zones, encoded as a fraction of
@@ -282,5 +387,18 @@ final class ClockModel {
                 calendar: gregorian
             )
         )
+    }
+
+    /// The hour in whichever format the surface is showing — the one place the
+    /// 12/24 choice is made, so the glyph and the status menu cannot drift apart.
+    nonisolated static func hour(for tz: TimeZone, at date: Date, hour12 twelveHour: Bool) -> String {
+        twelveHour ? hour12(for: tz, at: date) : hour(for: tz, at: date)
+    }
+
+    /// Zone-local `HH:mm`. One join for every surface that spells the time out in
+    /// full (the zone picker, the status menu); the glyph splits the two halves
+    /// across cells and composes them itself.
+    nonisolated static func time(for tz: TimeZone, at date: Date, hour12 twelveHour: Bool) -> String {
+        "\(hour(for: tz, at: date, hour12: twelveHour)):\(minute(for: tz, at: date))"
     }
 }

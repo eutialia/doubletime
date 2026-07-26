@@ -28,8 +28,8 @@ struct TimeGlyph: View {
 
     var body: some View {
         let sweep = ClockModel.anchoredSweep(secondary: secondaryTimezone, primary: primaryTimezone, at: now)
-        let secondaryHour = digits(for: secondaryTimezone)
-        let primaryHour = digits(for: primaryTimezone)
+        let secondaryHour = ClockModel.hour(for: secondaryTimezone, at: now, hour12: hour12)
+        let primaryHour = ClockModel.hour(for: primaryTimezone, at: now, hour12: hour12)
         // Hover rolls the minute to the secondary zone ONLY when the sub-hour
         // indicator is showing — the exact predicate that draws the arc.
         // TrailingMinute keeps one always-present Text (replica-safe) that
@@ -60,10 +60,6 @@ struct TimeGlyph: View {
             "\(secondaryLabel) \(secondaryHour)\(spell(secondaryPeriod)), "
             + "\(primaryLabel) \(primaryHour)\(spell(primaryPeriod)) \(primaryMinute)"
         )
-    }
-
-    private func digits(for tz: TimeZone) -> String {
-        hour12 ? ClockModel.hour12(for: tz, at: now) : ClockModel.hour(for: tz, at: now)
     }
 
     /// Speaks the 12-hour period for VoiceOver (empty in 24-hour mode, where the
