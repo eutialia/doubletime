@@ -12,22 +12,17 @@ struct TimezoneRow: View {
     let now: Date
     let referenceTimezone: TimeZone
 
+    /// Always 24-hour, whatever the glyph is set to: the picker is a scan across
+    /// hundreds of zones, where a period suffix is noise.
     private var timeString: String {
-        let h = ClockModel.hour(for: option.timezone, at: now)
-        let m = ClockModel.minute(for: option.timezone, at: now)
-        return "\(h):\(m)"
+        ClockModel.time(for: option.timezone, at: now, hour12: false)
     }
 
     private var offsetString: String {
-        let minutes = ClockModel.offsetMinutes(from: option.timezone, to: referenceTimezone, at: now)
-        if minutes == 0 { return "same" }
-        let hours = minutes / 60
-        let remainder = abs(minutes % 60)
-        let sign = minutes >= 0 ? "+" : "−"
-        if remainder == 0 {
-            return "\(sign)\(abs(hours))h"
-        }
-        return "\(sign)\(abs(hours)):\(remainder.formatted(.number.precision(.integerLength(2))))"
+        ClockModel.offsetCaption(
+            minutes: ClockModel.offsetMinutes(from: option.timezone, to: referenceTimezone, at: now),
+            style: .terse
+        )
     }
 
     var body: some View {

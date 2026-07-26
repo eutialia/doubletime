@@ -112,6 +112,11 @@ enum DesignTokens {
     /// chip fill + label dim, never from dimming the digits.
     static let inkOpacity: Double = 0.96
 
+    /// De-emphasised ink (`--dt-text-dim`) — zone codes, dates and offset
+    /// captions in the status menu. A step brighter than the secondary zone
+    /// label, which sits on the menu bar and has less contrast to spend.
+    static let dimInkOpacity: Double = 0.62
+
     static let primaryLabelOpacity: Double = 0.96
     static let secondaryLabelOpacity: Double = 0.55
 
@@ -189,6 +194,26 @@ enum DesignTokens {
         }
         return Color(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, opacity: alpha)
     }
+
+    // MARK: Status menu
+
+    /// The enlarged time on a status-menu zone row. Monospaced digits for the
+    /// same reason the glyph uses them: the two rows' chips must not jitter
+    /// against each other as the minutes tick.
+    static let menuTime = Font.system(size: 17, weight: .medium).monospacedDigit()
+    static let menuChipCornerRadius: CGFloat = 5
+    /// Row inset. The canon token is 12, but a custom menu item's view starts
+    /// flush at the panel edge while AppKit insets a standard item's title —
+    /// pixel-measured at 16.5pt against the command items, so 12 left the zone
+    /// rows visibly hanging 4pt to their left. Re-measure if the row's type
+    /// changes; this is a platform constant, not a derived one.
+    static let menuRowPaddingX: CGFloat = 16
+    static let menuRowPaddingY: CGFloat = 6
+    /// Floor for a zone row's width. `NSMenu` sizes itself to its widest item, so
+    /// this — not a fixed panel width — is what stops a short city name from
+    /// producing a cramped menu. The design's 268px is a CSS artifact with no
+    /// native counterpart.
+    static let menuRowMinWidth: CGFloat = 244
 
     // MARK: Settings layout
 

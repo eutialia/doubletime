@@ -199,6 +199,176 @@ struct doubletimeTests {
         #expect(ClockModel.offsetMinutes(from: la, to: la, at: Self.reference) == 0)
     }
 
+    // MARK: Offset captions
+
+    /// The status menu's caption never collapses: whole hours keep `:00` and a
+    /// zero offset still renders, so the row's layout can't reflow. 750 is the
+    /// design card's own example (Kolkata over Los Angeles) — a two-digit hour
+    /// that must not lose its padding.
+    @Test(arguments: [
+        (330, "+5:30"),
+        (-120, "\u{2212}2:00"),
+        (0, "+0:00"),
+        (345, "+5:45"),
+        (750, "+12:30"),
+    ])
+    func offsetCaptionExactKeepsAFixedShape(minutes: Int, expected: String) {
+        #expect(ClockModel.offsetCaption(minutes: minutes, style: .exact) == expected)
+    }
+
+    @Test(arguments: [
+        (0, "same"),
+        (300, "+5h"),
+        (-480, "\u{2212}8h"),
+        (330, "+5:30"),
+    ])
+    func offsetCaptionTerseCollapsesCommonCases(minutes: Int, expected: String) {
+        #expect(ClockModel.offsetCaption(minutes: minutes, style: .terse) == expected)
+    }
+
+    @Test func offsetCaptionSignIsMinusNotHyphen() {
+        // U+2212 shares the tabular digits' width; a hyphen would sit narrow.
+        let negative = ClockModel.offsetCaption(minutes: -750, style: .exact)
+        #expect(negative.hasPrefix("\u{2212}"))
+        #expect(!negative.contains("-"))
+    }
+
+    @Test func spokenOffsetReadsAsWords() {
+        #expect(ClockModel.spokenOffset(minutes: 0) == "same time")
+        #expect(ClockModel.spokenOffset(minutes: 750).hasSuffix("ahead"))
+        #expect(ClockModel.spokenOffset(minutes: -750).hasSuffix("behind"))
+        // Zero-value units are hidden, so a whole-hour offset says no "0 minutes".
+        #expect(!ClockModel.spokenOffset(minutes: 300).contains("0 minutes"))
+    }
+
+    // MARK: Date label
+
+    @Test func dateLabelPutsDayBeforeMonth() {
+        // Canon shape: `Mon 20 Apr`, matching the 24-hour digits' reading order.
+        #expect(ClockModel.dateLabel(for: timezone("America/Los_Angeles"), at: Self.reference) == "Mon 20 Apr")
+        // 12:00 UTC is already the 21st in Auckland (UTC+12).
+        #expect(ClockModel.dateLabel(for: timezone("Pacific/Auckland"), at: Self.reference) == "Tue 21 Apr")
+    }
+
+    @Test func dateLabelIsFixedNotLocalized() throws {
+        // A localized style would reorder to `Mon, Apr 20` and add a comma; the
+        // verbatim style must not, whatever locale the host happens to run under.
+        let label = ClockModel.dateLabel(for: timezone("UTC"), at: Self.reference)
+        let day = try #require(label.range(of: "20"))
+        let month = try #require(label.range(of: "Apr"))
+        #expect(day.lowerBound < month.lowerBound)
+        #expect(!label.contains(","))
+    }
+
+    // MARK: Day delta
+
+    @Test func dayDeltaCrossesTheDateBoundary() {
+        // 12:00 UTC — Auckland is already the 21st, Los Angeles still the 20th.
+        let auckland = timezone("Pacific/Auckland")
+        let la = timezone("America/Los_Angeles")
+        #expect(ClockModel.dayDelta(from: auckland, to: la, at: Self.reference) == 1)
+        #expect(ClockModel.dayDelta(from: la, to: auckland, at: Self.reference) == -1)
+        #expect(ClockModel.dayDelta(from: la, to: la, at: Self.reference) == 0)
+    }
+
+    @Test func dayDeltaIsZeroForALargeSameDayOffset() {
+        // Kolkata is 750 minutes ahead of LA yet the calendar day is the same —
+        // the delta must come from the dates, not from the offset's magnitude.
+        #expect(ClockModel.offsetMinutes(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: Self.reference) == 750)
+        #expect(ClockModel.dayDelta(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: Self.reference) == 0)
+    }
+
+    @Test func dayDeltaSurvivesADstTransition() throws {
+        // 2026-03-08 10:30 UTC: Los Angeles has just sprung forward to PDT
+        // (02:30 local), London is still on GMT (10:30). Same calendar day, and
+        // the zone whose clock jumped must not read as a day apart.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timezone("UTC")
+        let springForward = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 10, minute: 30))
+        )
+        #expect(ClockModel.dayDelta(from: timezone("Europe/London"), to: timezone("America/Los_Angeles"), at: springForward) == 0)
+        #expect(ClockModel.dateLabel(for: timezone("America/Los_Angeles"), at: springForward) == "Sun 08 Mar")
+    }
+
+    @Test func dayDeltaReachesTwoDaysAcrossTheFullZoneSpan() throws {
+        // The zone span is 26 hours, not 24: at 10:00 UTC, Kiritimati (UTC+14) is
+        // 00:00 on the 21st while Midway (UTC−11) is still 23:00 on the 19th. The
+        // row must not describe that as "next day".
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timezone("UTC")
+        let instant = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 4, day: 20, hour: 10))
+        )
+        let kiritimati = timezone("Pacific/Kiritimati")
+        let midway = timezone("Pacific/Midway")
+        #expect(ClockModel.dayDelta(from: kiritimati, to: midway, at: instant) == 2)
+        #expect(ClockModel.spokenDayDelta(2) == "2 days later")
+        #expect(ClockModel.spokenDayDelta(-2) == "2 days earlier")
+        #expect(ClockModel.spokenDayDelta(1) == "next day")
+        #expect(ClockModel.spokenDayDelta(-1) == "previous day")
+        #expect(ClockModel.spokenDayDelta(0) == nil)
+    }
+
+    // MARK: Status menu rows
+
+    @Test func statusMenuSecondaryRowCarriesOffsetAndDayDelta() {
+        let auckland = timezone("Pacific/Auckland")
+        let row = StatusMenuZone.make(
+            timezone: auckland,
+            code: "NZST",
+            hour12: false,
+            isPrimary: false,
+            offsetMinutes: ClockModel.offsetMinutes(from: auckland, to: timezone("America/Los_Angeles"), at: Self.reference),
+            dayDelta: 1,
+            at: Self.reference
+        )
+        #expect(row.city == "Auckland")
+        #expect(row.time == "00:00")
+        #expect(row.caption == "Tue 21 Apr")
+        #expect(row.offset == "+19:00  +1d")
+        #expect(row.period == nil)
+    }
+
+    @Test func statusMenuPrimaryRowHasNoOffset() {
+        // The primary zone is the anchor everything else is measured from.
+        let row = StatusMenuZone.make(
+            timezone: timezone("America/Los_Angeles"),
+            code: "PDT", hour12: false, isPrimary: true,
+            offsetMinutes: nil, dayDelta: 0, at: Self.reference
+        )
+        #expect(row.offset == nil)
+        #expect(row.isPrimary)
+        #expect(row.time == "05:00")
+    }
+
+    @Test func statusMenuSpellsPeriodInTheCaptionNotOnTheChip() {
+        // The one surface where AM/PM is written out — and it goes in the
+        // caption, so the time chip itself stays pure hue.
+        let row = StatusMenuZone.make(
+            timezone: timezone("America/Los_Angeles"),
+            code: "PDT", hour12: true, isPrimary: true,
+            offsetMinutes: nil, dayDelta: 0, at: Self.reference
+        )
+        #expect(row.time == "05:00")
+        #expect(row.period == .am)
+        #expect(row.caption == "Mon 20 Apr · AM")
+        #expect(!row.time.contains("AM"))
+    }
+
+    @Test func statusMenuAccessibilityLabelSpeaksOffsetAsWords() {
+        let row = StatusMenuZone.make(
+            timezone: timezone("Pacific/Auckland"),
+            code: "NZST", hour12: false, isPrimary: false,
+            offsetMinutes: 1140, dayDelta: 1, at: Self.reference
+        )
+        #expect(row.accessibilityLabel.contains("Auckland"))
+        #expect(row.accessibilityLabel.contains("ahead"))
+        #expect(row.accessibilityLabel.contains("next day"))
+        // The visible "+19:00" glyph must not be what VoiceOver reads.
+        #expect(!row.accessibilityLabel.contains("+19:00"))
+    }
+
     // MARK: Minute digits
 
     @Test func minuteRendersZoneWallClock() {
