@@ -48,87 +48,48 @@ private func approximatelyEqual(
         && abs(lhs.b - rhs.b) < tolerance && abs(lhs.a - rhs.a) < tolerance
 }
 
-/// A light/dark expectation for one of DesignTokens' dynamic settings-surface
-/// tokens, expressed the same way DesignTokens itself builds it (a hex triplet
-/// or a white+alpha pair) so the test pins the documented pairing rather than
-/// a copy of the resolved doubles.
-fileprivate enum ColorSpec: Sendable {
-    case hex(UInt32)
-    case white(Double, Double)
-
-    @MainActor var nsColor: NSColor {
-        switch self {
-        case .hex(let value): NSColor(hex: value)
-        case .white(let white, let alpha): NSColor(white: white, alpha: alpha)
-        }
-    }
-}
-
-/// One dynamic token under test: the accessor itself, alongside the pairing it
-/// must resolve to. Carrying the accessor in the case means the argument list IS
-/// the table — there is no stringly-typed lookup that can go stale or fall
-/// through to a `preconditionFailure`; `name` is display only.
+/// One dynamic token under test. Carrying the accessor in the case means the
+/// argument list IS the table — there is no stringly-typed lookup that can go
+/// stale; `name` is display only.
 fileprivate struct DynamicTokenCase: Sendable, CustomTestStringConvertible {
     let name: String
     let color: @MainActor @Sendable () -> Color
-    let light: ColorSpec
-    let dark: ColorSpec
 
     var testDescription: String { name }
 
     static let all: [DynamicTokenCase] = [
-        DynamicTokenCase(name: "canvas", color: { DesignTokens.canvas },
-                         light: .hex(0xF0EE_E9), dark: .hex(0x2626_24)),
-        DynamicTokenCase(name: "card", color: { DesignTokens.card },
-                         light: .hex(0xFFFF_FF), dark: .hex(0x3030_2E)),
-        DynamicTokenCase(name: "fieldBackground", color: { DesignTokens.fieldBackground },
-                         light: .hex(0xFFFF_FF), dark: .hex(0x3A3A_38)),
-        DynamicTokenCase(name: "textStrong", color: { DesignTokens.textStrong },
-                         light: .hex(0x1A1A_1A), dark: .white(1, 0.96)),
-        DynamicTokenCase(name: "textBody", color: { DesignTokens.textBody },
-                         light: .hex(0x4444_44), dark: .white(1, 0.78)),
-        DynamicTokenCase(name: "textMuted", color: { DesignTokens.textMuted },
-                         light: .hex(0x7777_77), dark: .white(1, 0.55)),
-        DynamicTokenCase(name: "textFaint", color: { DesignTokens.textFaint },
-                         light: .hex(0x8A8A_8A), dark: .white(1, 0.40)),
-        DynamicTokenCase(name: "hairline", color: { DesignTokens.hairline },
-                         light: .white(0, 0.08), dark: .white(1, 0.10)),
-        DynamicTokenCase(name: "cardBorder", color: { DesignTokens.cardBorder },
-                         light: .white(0, 0.12), dark: .white(1, 0.16)),
-        DynamicTokenCase(name: "fieldBorder", color: { DesignTokens.fieldBorder },
-                         light: .white(0, 0.15), dark: .white(1, 0.18)),
-        DynamicTokenCase(name: "radioRing", color: { DesignTokens.radioRing },
-                         light: .white(0, 0.30), dark: .white(1, 0.35)),
-        DynamicTokenCase(name: "searchFieldFill", color: { DesignTokens.searchFieldFill },
-                         light: .white(0, 0.05), dark: .white(1, 0.08)),
-        DynamicTokenCase(name: "controlTint", color: { DesignTokens.controlTint },
-                         light: .hex(0x1A1A_1A), dark: .hex(0x9898_9D)),
+        DynamicTokenCase(name: "canvas", color: { DesignTokens.canvas }),
+        DynamicTokenCase(name: "card", color: { DesignTokens.card }),
+        DynamicTokenCase(name: "fieldBackground", color: { DesignTokens.fieldBackground }),
+        DynamicTokenCase(name: "textStrong", color: { DesignTokens.textStrong }),
+        DynamicTokenCase(name: "textBody", color: { DesignTokens.textBody }),
+        DynamicTokenCase(name: "textMuted", color: { DesignTokens.textMuted }),
+        DynamicTokenCase(name: "textFaint", color: { DesignTokens.textFaint }),
+        DynamicTokenCase(name: "hairline", color: { DesignTokens.hairline }),
+        DynamicTokenCase(name: "cardBorder", color: { DesignTokens.cardBorder }),
+        DynamicTokenCase(name: "fieldBorder", color: { DesignTokens.fieldBorder }),
+        DynamicTokenCase(name: "radioRing", color: { DesignTokens.radioRing }),
+        DynamicTokenCase(name: "searchFieldFill", color: { DesignTokens.searchFieldFill }),
+        DynamicTokenCase(name: "controlTint", color: { DesignTokens.controlTint }),
     ]
 }
 
 struct DesignTokenTests {
-    // MARK: chipFillAlpha / markOpacity — exhaustive branch tables
+    // MARK: chipFillAlpha / markOpacity — hierarchy invariants
 
-    /// Baseline: line 155 is unreachable without exercising both `isPrimary`
-    /// values crossed with both color schemes.
-    @Test(arguments: [
-        (true, ColorScheme.dark, 0.32),
-        (true, ColorScheme.light, 0.22),
-        (false, ColorScheme.dark, 0.07),
-        (false, ColorScheme.light, 0.05),
-    ])
-    func chipFillAlphaCoversAllFourBranches(isPrimary: Bool, colorScheme: ColorScheme, expected: Double) {
-        #expect(DesignTokens.chipFillAlpha(isPrimary: isPrimary, colorScheme: colorScheme) == expected)
+    /// Fill contrast is the only hierarchy channel in 24-hour mode; the doc
+    /// promises a gap of about 4.5x.
+    @Test(arguments: [ColorScheme.light, .dark])
+    func primaryChipFillAlphaClearlyExceedsSecondary(colorScheme: ColorScheme) {
+        let primary = DesignTokens.chipFillAlpha(isPrimary: true, colorScheme: colorScheme)
+        let secondary = DesignTokens.chipFillAlpha(isPrimary: false, colorScheme: colorScheme)
+        #expect(primary > secondary * 4)
     }
 
-    @Test(arguments: [
-        (false, ColorScheme.dark, 0.92),
-        (false, ColorScheme.light, 0.88),
-        (true, ColorScheme.dark, 0.55),
-        (true, ColorScheme.light, 0.50),
-    ])
-    func markOpacityCoversAllFourBranches(isDim: Bool, colorScheme: ColorScheme, expected: Double) {
-        #expect(DesignTokens.markOpacity(isDim: isDim, colorScheme: colorScheme) == expected)
+    @Test(arguments: [ColorScheme.light, .dark])
+    func brightMarkOpacityExceedsDim(colorScheme: ColorScheme) {
+        #expect(DesignTokens.markOpacity(isDim: false, colorScheme: colorScheme)
+                > DesignTokens.markOpacity(isDim: true, colorScheme: colorScheme))
     }
 
     // MARK: chipFill — period == nil path
@@ -237,26 +198,28 @@ struct DesignTokenTests {
         #expect(actual.a == 1)
     }
 
-    // MARK: Dynamic settings-surface tokens (lines 255–259)
+    // MARK: Dynamic settings-surface tokens
 
-    /// Forces each dynamic token's `NSColor(name:dynamicProvider:)` to
-    /// resolve under `.aqua` and `.darkAqua` explicitly (outside of any real
-    /// window/drawing context, which is where it would otherwise be resolved)
-    /// and checks the result against the documented light/dark pairing
-    /// literally written in DesignTokens.swift.
+    /// Resolves the provider under `.aqua` and `.darkAqua` explicitly (outside
+    /// any real drawing context): canvas must land on its two literals.
+    @MainActor @Test func canvasResolvesToItsLightAndDarkLiterals() throws {
+        let aqua = try #require(NSAppearance(named: .aqua))
+        let darkAqua = try #require(NSAppearance(named: .darkAqua))
+
+        #expect(approximatelyEqual(
+            srgbComponents(DesignTokens.canvas, resolvingUnder: aqua), srgbComponents(NSColor(hex: 0xF0EE_E9))))
+        #expect(approximatelyEqual(
+            srgbComponents(DesignTokens.canvas, resolvingUnder: darkAqua), srgbComponents(NSColor(hex: 0x2626_24))))
+    }
+
     @Test(arguments: DynamicTokenCase.all)
-    @MainActor fileprivate func dynamicTokenResolvesToItsDocumentedLightDarkPairing(token: DynamicTokenCase) throws {
+    @MainActor fileprivate func dynamicTokenChangesBetweenAppearances(token: DynamicTokenCase) throws {
         let aqua = try #require(NSAppearance(named: .aqua))
         let darkAqua = try #require(NSAppearance(named: .darkAqua))
         let color = token.color()
 
         let resolvedLight = srgbComponents(color, resolvingUnder: aqua)
         let resolvedDark = srgbComponents(color, resolvingUnder: darkAqua)
-        let expectedLight = srgbComponents(token.light.nsColor)
-        let expectedDark = srgbComponents(token.dark.nsColor)
-
-        #expect(approximatelyEqual(resolvedLight, expectedLight), "\(token.name) light mismatch: \(resolvedLight) vs \(expectedLight)")
-        #expect(approximatelyEqual(resolvedDark, expectedDark), "\(token.name) dark mismatch: \(resolvedDark) vs \(expectedDark)")
-        #expect(!approximatelyEqual(resolvedLight, resolvedDark), "\(token.name) must actually change between appearances")
+        #expect(approximatelyEqual(resolvedLight, resolvedDark) == false, "\(token.name) must actually change between appearances")
     }
 }

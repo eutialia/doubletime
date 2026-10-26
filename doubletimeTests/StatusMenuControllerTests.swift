@@ -38,6 +38,7 @@ struct StatusMenuControllerTests {
         let clock = scratch.makeClock()
         let controller = makeController(clock: clock, flags: MenuCallbackFlags())
 
+        #expect(controller.menu.delegate === controller)
         #expect(controller.menu.items.count == 5)
 
         #expect(controller.menu.items[0].view != nil)
@@ -80,7 +81,7 @@ struct StatusMenuControllerTests {
         let flags = MenuCallbackFlags()
         let controller = makeController(clock: clock, flags: flags)
 
-        controller.menuDidClose(controller.menu)
+        controller.menu.delegate?.menuDidClose?(controller.menu)
         #expect(flags.closed)
     }
 
@@ -98,7 +99,7 @@ struct StatusMenuControllerTests {
         _ = target.perform(action, with: item)
 
         #expect(flags.settingsSelected)
-        #expect(!flags.quitSelected)
+        #expect(flags.quitSelected == false)
     }
 
     @Test @MainActor func quitMenuItemInvokesOnQuit() throws {
@@ -112,6 +113,6 @@ struct StatusMenuControllerTests {
         _ = target.perform(action, with: item)
 
         #expect(flags.quitSelected)
-        #expect(!flags.settingsSelected)
+        #expect(flags.settingsSelected == false)
     }
 }

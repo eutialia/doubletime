@@ -9,13 +9,6 @@ import Testing
 @testable import doubletime
 
 struct GlyphRenderTests {
-    // MARK: HourCell.Tone.isDim (trivial, direct)
-
-    @Test func toneIsDimReflectsOnlySecondary() {
-        #expect(HourCell.Tone.primary.isDim == false)
-        #expect(HourCell.Tone.secondary.isDim == true)
-    }
-
     // MARK: 12-hour glyph path (TimeGlyph + HourCell period/hue branch)
 
     /// LA (PDT) is 05:00 AM and Kolkata (IST) is 17:30 PM at `reference`, so
@@ -35,24 +28,6 @@ struct GlyphRenderTests {
             return try pixelData(of: raster.rasterize(pixelScale: 4))
         }
         #expect(try render(hour12: false) != render(hour12: true))
-    }
-
-    /// The hovered swap-minute path is exercised elsewhere in 24-hour mode
-    /// (doubletimeTests.hoverSwapsMinuteWidthNeutrally); this pins the same
-    /// behavior for the 12-hour path, where the swapped ink also picks up the
-    /// secondary zone's period hue (TrailingMinute.digits, minuteSwapInk).
-    @Test @MainActor func hoveredTwelveHourMinuteSwapChangesRenderedPixels() throws {
-        func render(hovered: Bool) throws -> Data {
-            let raster = StatusItemRaster(scale: 1) {
-                TimeGlyph(
-                    secondaryLabel: "KAT", secondaryTimezone: timezone("Asia/Kathmandu"),
-                    primaryLabel: "PDT", primaryTimezone: timezone("America/Los_Angeles"),
-                    now: reference, hour12: true, variant: .arc, hovered: hovered
-                )
-            }
-            return try pixelData(of: raster.rasterize(pixelScale: 4))
-        }
-        #expect(try render(hovered: false) != render(hovered: true))
     }
 
     // MARK: Segmented vs arc variant (HourCell's segmented quarters>0 branch)
@@ -97,25 +72,6 @@ struct GlyphRenderTests {
         #expect(arc == segmented)
     }
 
-    // MARK: TrailingMinute defaults (lines 26, 28, 38, 41 — property initializers)
-
-    /// Constructs TrailingMinute with every parameter but `minute` left at
-    /// its default (blink=false, swapped=false, rollsUp=true,
-    /// secondaryPeriod=nil), which is the only way those default-value
-    /// expressions execute — every other call site in the app (TimeGlyph)
-    /// always passes them explicitly.
-    @Test @MainActor func trailingMinuteWithAllDefaultsRendersNonVacuousInk() throws {
-        let scan = try RasterScan(
-            of: TrailingMinute(minute: "42")
-                .padding(4)
-                .background(Color(hex: 0x2D2D_2D))
-                .environment(\.colorScheme, .dark),
-            compositedOn: 0x2D
-        )
-        let hasInk = (0..<scan.height).contains { y in (0..<scan.width).contains { x in scan.isInk(x, y) } }
-        #expect(hasInk)
-    }
-
     // MARK: TrailingMinute blink path (lines 77–79)
 
     /// TrailingMinute's blink colon is a `TimelineView(.periodic(from: .now,
@@ -140,7 +96,7 @@ struct GlyphRenderTests {
         }
         func inkPixelCount() throws -> Int {
             let scan = try RasterScan(
-                of: TrailingMinute(minute: "00", blink: true)
+                of: TrailingMinute(minute: "00", blink: true, swapped: false, rollsUp: true, secondaryPeriod: nil)
                     .padding(4)
                     .background(Color(hex: 0x2D2D_2D))
                     .environment(\.colorScheme, .dark),

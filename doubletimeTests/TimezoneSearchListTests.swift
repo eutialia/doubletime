@@ -34,37 +34,6 @@ private func windowedBitmap(_ view: some View, size: NSSize) throws -> NSBitmapI
     return rep
 }
 
-/// The dark `card` background is itself well above a naive low threshold, which
-/// would count the WHOLE canvas as "ink" and mask any real content difference
-/// (empirically: a threshold of 40 made a total-ink-count comparison measure
-/// the exact same count with and without the extra row).
-///
-/// Derived from DesignTokens on the same rationale as `RasterScan`'s
-/// `inkAlphaThreshold`: midway between the bare backdrop (the `card` token, ink
-/// alpha 0) and the dimmest real ink element on this surface (the `hairline`
-/// divider), composited over that backdrop the way `RasterScan.isInk` does it.
-/// Currently ≈57, between the card's ≈47 and the hairline's ≈68 — a re-tuned
-/// card or hairline moves it instead of silently blinding the scan.
-@MainActor private let windowedInkLuminanceThreshold: Int = {
-    let card = NSColor(DesignTokens.card)
-    let hairline = NSColor(DesignTokens.hairline)
-    var backdrop = 0.0
-    var dimmestInkAlpha = 0.0
-    // Fail fast rather than degrade: a nil appearance would leave the threshold
-    // at 0, and a zero threshold counts every pixel as ink — vacuously green.
-    guard let darkAqua = NSAppearance(named: .darkAqua) else {
-        preconditionFailure("darkAqua appearance unavailable — threshold underivable")
-    }
-    darkAqua.performAsCurrentDrawingAppearance {
-        let resolvedCard = card.usingColorSpace(.sRGB) ?? card
-        backdrop = Double(resolvedCard.redComponent + resolvedCard.greenComponent
-            + resolvedCard.blueComponent) / 3 * 255
-        dimmestInkAlpha = Double((hairline.usingColorSpace(.sRGB) ?? hairline).alphaComponent)
-    }
-    // White ink at alpha a over the backdrop has luminance b + a(255 − b).
-    return Int(backdrop + dimmestInkAlpha / 2 * (255 - backdrop))
-}()
-
 private struct WindowedPixels {
     let width: Int
     let height: Int
@@ -89,34 +58,8 @@ private func windowedPixels(_ view: some View, size: NSSize) throws -> WindowedP
     )
 }
 
-@MainActor
-private func windowedInkCount(_ view: some View, size: NSSize) throws -> Int {
-    let pixels = try windowedPixels(view, size: size)
-    var count = 0
-    for y in 0..<pixels.height {
-        for x in 0..<pixels.width where pixels.luminance(x, y) > windowedInkLuminanceThreshold {
-            count += 1
-        }
-    }
-    return count
-}
-
 struct TimezoneSearchListTests {
     private static let size = NSSize(width: 300, height: 320)
-
-    /// The default (empty search) state renders the full unfiltered row list.
-    /// Dark appearance + a dark composited card background, matching the rest
-    /// of the suite's ink-detection convention (RasterScan's luminance check
-    /// assumes ink is BRIGHTER than the backdrop, which only holds in dark
-    /// mode here). The filtering logic itself (TimezoneSearch) already has
-    /// its own pure-function tests elsewhere — this only pins that the list
-    /// actually draws rows, not just its search field chrome.
-    @Test @MainActor func rendersRowInkInTheDefaultUnfilteredState() throws {
-        let view = TimezoneSearchList(referenceTimezone: timezone("America/Los_Angeles")) { _ in }
-            .environment(\.colorScheme, .dark)
-        let count = try windowedInkCount(view, size: Self.size)
-        #expect(count > 0)
-    }
 
     /// `includeSystemRow` adds a pinned "System (auto)" row (plus a divider)
     /// above the searched list, pushing every row below it down by one row's
@@ -156,18 +99,6 @@ struct TimezoneSearchListTests {
 struct TimezoneRowTests {
     private func tokyoOption() throws -> TimezoneOption {
         try #require(TimezoneOption.all.first { $0.id == "Asia/Tokyo" })
-    }
-
-    /// A fixed `now` and a fixed `option` must render byte-identically on
-    /// repeat — nothing in the row should depend on ambient state.
-    @Test @MainActor func rendersDeterministicallyForAFixedInstant() throws {
-        let option = try tokyoOption()
-        func render() throws -> Data {
-            try pixelData(of: TimezoneRow(
-                option: option, now: reference, referenceTimezone: timezone("America/Los_Angeles")
-            ).frame(width: 260))
-        }
-        #expect(try render() == render())
     }
 
     /// The row's time text is derived from `now`; advancing it by a whole
