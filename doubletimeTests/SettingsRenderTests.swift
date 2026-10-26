@@ -66,16 +66,18 @@ struct SettingsRenderTests {
 
     // MARK: SettingsView
 
-    /// SettingsView wraps SettingsPane in a TabView — this confirms the
-    /// TabView chrome itself still renders headlessly (no window/scene) at
-    /// the documented width, exercising SettingsView's otherwise-uncovered
-    /// body.
-    @Test @MainActor func settingsViewRendersAtTheDocumentedWidth() throws {
+    /// SettingsView wraps SettingsPane in a TabView, which on macOS is an
+    /// NSTabView platform view hosting each tab in a nested graph.
+    /// ImageRenderer cannot host that: tearing it down removes the nested
+    /// pane's `.onAppear` outside any update transaction and SwiftUI traps
+    /// ("no current update to enqueue action to"), crashing the test host.
+    /// NSHostingView is the host the window really uses.
+    @Test @MainActor func settingsViewLaysOutAtTheDocumentedWidth() {
         let clock = scratch.makeClock()
-        let renderer = ImageRenderer(content: SettingsView(clock: clock, loginItem: stubbedLoginItem()))
-        let image = try #require(renderer.nsImage)
-        #expect(image.size.width == DesignTokens.settingsWidth)
-        #expect(image.size.height > 0)
+        let host = NSHostingView(rootView: SettingsView(clock: clock, loginItem: stubbedLoginItem()))
+        let size = host.fittingSize
+        #expect(size.width == DesignTokens.settingsWidth)
+        #expect(size.height > 0)
     }
 
     // MARK: AboutPane
