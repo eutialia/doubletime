@@ -49,8 +49,9 @@ struct OnboardingView: View {
         .background(ViewAnchor(view: anchor))
         .tint(DesignTokens.controlTint)
         // An LSUIElement app is never activated at launch, so the window would
-        // open behind whatever app is frontmost.
-        .onAppear { NSApp.activate() }
+        // open behind whatever app is frontmost. Cooperative `activate()` loses
+        // to that app when Finder or LaunchServices starts us.
+        .onAppear { NSApp.activate(ignoringOtherApps: true) }
     }
 }
 
