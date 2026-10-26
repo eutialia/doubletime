@@ -11,16 +11,7 @@ import SwiftUI
 /// is the live preview.
 struct SettingsPane: View {
     @Bindable var clock: ClockModel
-    /// Injectable so tests can drive the pane off a stubbed `LoginItemService`
-    /// instead of `SMAppService.mainApp` — without it the pane's geometry (the
-    /// extra `.requiresApproval` row) would depend on the developer's real
-    /// Login Items. Production passes nothing and gets the real model.
-    private let loginItem: LoginItemModel?
-
-    @MainActor init(clock: ClockModel, loginItem: LoginItemModel? = nil) {
-        _clock = Bindable(wrappedValue: clock)
-        self.loginItem = loginItem
-    }
+    let loginItem: LoginItemModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

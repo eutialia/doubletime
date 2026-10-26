@@ -68,13 +68,13 @@ struct SettingsRenderTests {
 
     /// SettingsView wraps SettingsPane in a TabView, which on macOS is an
     /// NSTabView platform view hosting each tab in a nested graph.
-    /// ImageRenderer cannot host that: tearing it down removes the nested
-    /// pane's `.onAppear` outside any update transaction and SwiftUI traps
-    /// ("no current update to enqueue action to"), crashing the test host.
-    /// NSHostingView is the host the window really uses.
+    /// ImageRenderer cannot host that: tearing it down ran a nested-graph
+    /// action outside any update transaction and SwiftUI trapped ("no current
+    /// update to enqueue action to"), crashing the test host. NSHostingView is
+    /// the host the window really uses.
     @Test @MainActor func settingsViewLaysOutAtTheDocumentedWidth() {
         let clock = scratch.makeClock()
-        let host = NSHostingView(rootView: SettingsView(clock: clock))
+        let host = NSHostingView(rootView: SettingsView(clock: clock, loginItem: stubbedLoginItem()))
         let size = host.fittingSize
         #expect(size.width == DesignTokens.settingsWidth)
         #expect(size.height > 0)

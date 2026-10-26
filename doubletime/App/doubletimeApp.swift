@@ -16,12 +16,12 @@ struct doubletimeApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(clock: appDelegate.clock)
+            SettingsView(clock: appDelegate.clock, loginItem: appDelegate.loginItem)
         }
         .defaultLaunchBehavior(.suppressed)
 
         Window("Welcome to Doubletime", id: "onboarding") {
-            OnboardingView(clock: appDelegate.clock)
+            OnboardingView(clock: appDelegate.clock, loginItem: appDelegate.loginItem)
                 .onDisappear { onboardingCompleted = true }
         }
         .windowResizability(.contentSize)

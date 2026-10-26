@@ -52,8 +52,8 @@ nonisolated struct SystemLoginItemService: LoginItemService {
 /// Drives the launch-at-login toggle. The system's registration status is the
 /// sole source of truth — there is no stored preference. The user can flip the
 /// item in System Settings → General → Login Items at any time without the app
-/// being told, so callers re-run `refresh()` whenever the pane appears or the
-/// app becomes active.
+/// being told, so the app delegate re-runs `refresh()` whenever the app
+/// becomes active.
 @MainActor
 @Observable
 final class LoginItemModel {

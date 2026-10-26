@@ -11,6 +11,7 @@ import SwiftUI
 /// preview and Done only dismisses.
 struct OnboardingView: View {
     @Bindable var clock: ClockModel
+    let loginItem: LoginItemModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -27,7 +28,7 @@ struct OnboardingView: View {
 
             ZoneRows(clock: clock)
             SettingsDivider()
-            LaunchAtLoginRow()
+            LaunchAtLoginRow(loginItem: loginItem)
             SettingsDivider()
 
             HStack {

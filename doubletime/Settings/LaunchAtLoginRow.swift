@@ -3,22 +3,13 @@
 //  doubletime
 //
 
-import AppKit
 import ServiceManagement
 import SwiftUI
 
-/// The launch-at-login row, shared by Settings and onboarding. It owns the
-/// login-item model and refreshes it whenever the app comes forward, since the
-/// user can flip the item in System Settings while the window is open.
+/// The launch-at-login row, shared by Settings and onboarding. Both bind the
+/// app's single `LoginItemModel`, so two open windows never disagree.
 struct LaunchAtLoginRow: View {
-    @State private var loginItem: LoginItemModel
-
-    /// `nil` rather than a `LoginItemModel()` default argument: under the
-    /// Swift 5 language mode a default expression is evaluated in the caller's
-    /// isolation, where a main-actor initializer is unreachable.
-    @MainActor init(loginItem: LoginItemModel? = nil) {
-        _loginItem = State(initialValue: loginItem ?? LoginItemModel())
-    }
+    @Bindable var loginItem: LoginItemModel
 
     var body: some View {
         SettingsRow(
@@ -49,10 +40,6 @@ struct LaunchAtLoginRow: View {
                         .foregroundStyle(DesignTokens.textFaint)
                 }
             }
-        }
-        .onAppear { loginItem.refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            loginItem.refresh()
         }
     }
 }

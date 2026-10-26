@@ -10,11 +10,12 @@ import SwiftUI
 /// 12-hour glyph itself); every chrome color is a dynamic DesignTokens token.
 struct SettingsView: View {
     @Bindable var clock: ClockModel
+    let loginItem: LoginItemModel
 
     var body: some View {
         TabView {
             Tab("Settings", systemImage: "slider.horizontal.3") {
-                SettingsPane(clock: clock)
+                SettingsPane(clock: clock, loginItem: loginItem)
             }
 
             Tab("About", systemImage: "info.circle") {
@@ -28,5 +29,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(clock: ClockModel())
+    SettingsView(clock: ClockModel(), loginItem: LoginItemModel())
 }
