@@ -250,13 +250,6 @@ final class ClockModel {
         return String(cityName(from: tz).prefix(3)).uppercased()
     }
 
-    /// Single source of truth for "override or derived default" label resolution,
-    /// shared by the live glyph and every settings preview. The override is
-    /// sanitized (never rendered verbatim over the fixed cell).
-    nonisolated static func resolvedLabel(override: String?, for tz: TimeZone, at date: Date) -> String {
-        sanitizedLabel(override) ?? defaultLabel(for: tz, at: date)
-    }
-
     // MARK: Zone offsets
 
     /// Minutes `from` is ahead of `to` at `date` (negative ⇒ `from` is behind).

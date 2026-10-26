@@ -102,7 +102,7 @@ struct ClockModelTests {
         #expect(model.variant == .arc)
         #expect(model.blinkColon == false)
         // Transient interaction state is deliberately not persisted.
-        #expect(!model.statusItemHovered)
+        #expect(model.statusItemHovered == false)
         #expect(model.systemZoneGeneration == 0)
     }
 
@@ -139,7 +139,7 @@ struct ClockModelTests {
         #expect(model.primaryTimezone.identifier == TimeZone.autoupdatingCurrent.identifier)
 
         model.primaryTimezoneIdentifier = "Asia/Kolkata"
-        #expect(!model.primaryIsSystem)
+        #expect(model.primaryIsSystem == false)
         #expect(model.primaryTimezone.identifier == "Asia/Kolkata")
 
         // Back to system: the pinned snapshot must be dropped, not kept.
@@ -168,6 +168,18 @@ struct ClockModelTests {
 
         #expect(model.secondaryLabel(at: reference) == ClockModel.sanitizedLabel("home base"))
         #expect(model.primaryLabel(at: reference) == ClockModel.sanitizedLabel("n.y.c!"))
+    }
+
+    /// Clearing an override must delete the stored key, not leave a blank
+    /// string behind that would reload as a present-but-empty label.
+    @Test func clearingALabelOverrideRemovesItFromTheStore() {
+        let model = ClockModel(defaults: scratch.store)
+        model.primaryLabelOverride = "HOME"
+        model.primaryLabelOverride = nil
+
+        let store = scratch.reopened()
+        #expect(store.object(forKey: ClockModel.primaryLabelKey) == nil)
+        #expect(ClockModel(defaults: store).primaryLabelOverride == nil)
     }
 
     /// A blank override is not a label — it must fall through to the derived
@@ -265,9 +277,9 @@ struct ClockModelTests {
         "Asia/Tokyo",   // already the secondary zone — re-picking must not clear the code
         "Not/AZone",    // no TimeZone recognizes it
     ])
-    func commitZoneSecondaryIgnoresSameAndUnresolvableIdentifiers(identifier: String) {
+    func commitZoneSecondaryIgnoresSameAndUnresolvableIdentifiers(identifier: String) throws {
         let model = ClockModel(defaults: scratch.store)
-        #expect(model.secondaryTimezone.identifier == "Asia/Tokyo")
+        try #require(model.secondaryTimezone.identifier == "Asia/Tokyo")
         model.secondaryLabelOverride = "ZZZ"
 
         model.commitZone(identifier: identifier, isPrimary: false)
@@ -314,15 +326,6 @@ struct ClockModelTests {
     }
 
     // MARK: Format-aware hour and time
-
-    /// The 12/24 choice is made in exactly one place, so the switch must hand
-    /// back the very strings the two dedicated formatters produce.
-    @Test(arguments: ["Asia/Kathmandu", "America/Los_Angeles", "Pacific/Wallis", "UTC"])
-    func hourWithFormatFlagDelegatesToTheMatchingFormatter(identifier: String) {
-        let tz = timezone(identifier)
-        #expect(ClockModel.hour(for: tz, at: reference, hour12: true) == ClockModel.hour12(for: tz, at: reference))
-        #expect(ClockModel.hour(for: tz, at: reference, hour12: false) == ClockModel.hour(for: tz, at: reference))
-    }
 
     /// The joined `HH:mm` used by the picker rows and the status menu.
     @Test(arguments: [

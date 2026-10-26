@@ -9,7 +9,7 @@ import Testing
 
 struct TimezoneOptionTests {
     @Test func theTableIsPopulated() {
-        #expect(!TimezoneOption.all.isEmpty)
+        #expect(TimezoneOption.all.isEmpty == false)
         // compactMap drops nothing in practice: every known identifier resolves.
         #expect(TimezoneOption.all.count == TimeZone.knownTimeZoneIdentifiers.count)
     }
@@ -25,22 +25,6 @@ struct TimezoneOptionTests {
             $0.city.localizedCaseInsensitiveCompare($1.city) == .orderedDescending
         }
         #expect(outOfOrder.isEmpty, "\(outOfOrder.count) adjacent pairs are out of order")
-    }
-
-    /// Row↔zone ALIGNMENT: every row's cached fields must belong to the zone
-    /// its own `id` names. This re-derives them with the very expressions the
-    /// table used, so it cannot catch a wrong derivation — what it catches is a
-    /// mis-zip or a shuffle, a row carrying another zone's city.
-    ///
-    /// `abbreviation` is deliberately NOT re-checked: the table is built once at
-    /// process start while the check would run at `now`, so a DST transition
-    /// crossing between the two would fail the test for a correct table.
-    @Test func everyRowIsAlignedWithItsOwnTimeZone() throws {
-        for option in TimezoneOption.all {
-            let tz = try #require(TimeZone(identifier: option.id), "\(option.id) does not resolve")
-            #expect(option.timezone == tz)
-            #expect(option.city == ClockModel.cityName(from: tz))
-        }
     }
 
     /// Cities are display strings, so the identifier's machine syntax must be

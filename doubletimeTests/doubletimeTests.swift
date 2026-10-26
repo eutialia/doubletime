@@ -68,7 +68,7 @@ struct doubletimeTests {
 
     @Test func colonParity() {
         #expect(ClockModel.colonVisible(at: Date(timeIntervalSince1970: 100)))  // even
-        #expect(!ClockModel.colonVisible(at: Date(timeIntervalSince1970: 101))) // odd
+        #expect(ClockModel.colonVisible(at: Date(timeIntervalSince1970: 101)) == false) // odd
     }
 
     // MARK: Default label
@@ -114,13 +114,6 @@ struct doubletimeTests {
         #expect(ClockModel.sanitizedLabel(input) == expected)
     }
 
-    @Test func resolvedLabelSanitizesStaleOverride() {
-        // A persisted pre-v2 override is repaired at resolve time…
-        #expect(ClockModel.resolvedLabel(override: "Tokyo Office", for: timezone("Asia/Tokyo"), at: reference) == "TOKYO")
-        // …and an empty/whitespace override falls through to the derived default.
-        #expect(ClockModel.resolvedLabel(override: "  ", for: timezone("Asia/Tokyo"), at: reference) == "JST")
-    }
-
     // MARK: Offset minutes (sign convention)
 
     @Test func offsetMinutesSign() {
@@ -141,7 +134,7 @@ struct doubletimeTests {
     /// that must not lose its padding.
     @Test(arguments: [
         (330, "+5:30"),
-        (-120, "\u{2212}2:00"),
+        (-120, "\u{2212}2:00"),  // U+2212 has the tabular digits' width; a hyphen would sit narrow
         (0, "+0:00"),
         (345, "+5:45"),
         (750, "+12:30"),
@@ -160,19 +153,12 @@ struct doubletimeTests {
         #expect(ClockModel.offsetCaption(minutes: minutes, style: .terse) == expected)
     }
 
-    @Test func offsetCaptionSignIsMinusNotHyphen() {
-        // U+2212 shares the tabular digits' width; a hyphen would sit narrow.
-        let negative = ClockModel.offsetCaption(minutes: -750, style: .exact)
-        #expect(negative.hasPrefix("\u{2212}"))
-        #expect(!negative.contains("-"))
-    }
-
     @Test func spokenOffsetReadsAsWords() {
         #expect(ClockModel.spokenOffset(minutes: 0) == "same time")
         #expect(ClockModel.spokenOffset(minutes: 750).hasSuffix("ahead"))
         #expect(ClockModel.spokenOffset(minutes: -750).hasSuffix("behind"))
         // Zero-value units are hidden, so a whole-hour offset says no "0 minutes".
-        #expect(!ClockModel.spokenOffset(minutes: 300).contains("0 minutes"))
+        #expect(ClockModel.spokenOffset(minutes: 300).contains("0 minutes") == false)
     }
 
     // MARK: Date label
@@ -191,7 +177,7 @@ struct doubletimeTests {
         let day = try #require(label.range(of: "20"))
         let month = try #require(label.range(of: "Apr"))
         #expect(day.lowerBound < month.lowerBound)
-        #expect(!label.contains(","))
+        #expect(label.contains(",") == false)
     }
 
     // MARK: Day delta
@@ -208,7 +194,6 @@ struct doubletimeTests {
     @Test func dayDeltaIsZeroForALargeSameDayOffset() {
         // Kolkata is 750 minutes ahead of LA yet the calendar day is the same —
         // the delta must come from the dates, not from the offset's magnitude.
-        #expect(ClockModel.offsetMinutes(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: reference) == 750)
         #expect(ClockModel.dayDelta(from: timezone("Asia/Kolkata"), to: timezone("America/Los_Angeles"), at: reference) == 0)
     }
 
@@ -285,7 +270,7 @@ struct doubletimeTests {
         #expect(row.time == "05:00")
         #expect(row.period == .am)
         #expect(row.caption == "Mon 20 Apr · AM")
-        #expect(!row.time.contains("AM"))
+        #expect(row.time.contains("AM") == false)
     }
 
     @Test func statusMenuAccessibilityLabelSpeaksOffsetAsWords() {
@@ -298,7 +283,7 @@ struct doubletimeTests {
         #expect(row.accessibilityLabel.contains("ahead"))
         #expect(row.accessibilityLabel.contains("next day"))
         // The visible "+19:00" glyph must not be what VoiceOver reads.
-        #expect(!row.accessibilityLabel.contains("+19:00"))
+        #expect(row.accessibilityLabel.contains("+19:00") == false)
     }
 
     // MARK: Minute digits

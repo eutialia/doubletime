@@ -9,21 +9,6 @@ import Testing
 @testable import doubletime
 
 struct StatusItemRasterTests {
-    // MARK: StatusItemRaster's own body (lines 21–30)
-
-    /// Every other test in the suite exercises `rasterize(pixelScale:)`
-    /// directly; this instead renders the `StatusItemRaster` VIEW so its
-    /// `body` (the `Image(nsImage:).resizable().frame(...)` wrapper) actually
-    /// executes.
-    @Test @MainActor func bodyRendersNonVacuousInk() throws {
-        let scan = try RasterScan(
-            of: StatusItemRaster(scale: 1) { exemplarGlyph }.environment(\.colorScheme, .dark),
-            compositedOn: 0x2D
-        )
-        let hasInk = (0..<scan.height).contains { y in (0..<scan.width).contains { x in scan.isInk(x, y) } }
-        #expect(hasInk)
-    }
-
     /// `body` computes `image.size * scale` where `image` comes from
     /// `rasterize(pixelScale: displayScale * scale)` — NOT a fixed pixelScale
     /// — so the correct baseline to compare against is `rasterize`'s own

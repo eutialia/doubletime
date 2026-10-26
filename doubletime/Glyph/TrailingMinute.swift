@@ -23,9 +23,9 @@ struct TrailingMinute: View {
     /// The one string on display — TimeGlyph resolves which zone's minute this
     /// is; the single always-present Text content-transitions when it changes.
     let minute: String
-    var blink: Bool = false
+    let blink: Bool
     /// True while showing the secondary minute (rolls and recolors the digits).
-    var swapped: Bool = false
+    let swapped: Bool
     /// Roll direction: true when the secondary zone is ahead of the primary
     /// (anchoredSweep clockwise) — a later time rolls like an advancing
     /// counter. numericText's countsDown is the inverse notion.
@@ -35,10 +35,10 @@ struct TrailingMinute: View {
     /// modifier's value in the same transaction as the string change, so
     /// flipping which value it computes when `swapped` flips reverses the
     /// perceived direction on the way back.
-    var rollsUp: Bool = true
+    let rollsUp: Bool
     /// The secondary zone's period, hue-tinting the swapped ink in 12-hour
     /// mode; nil in 24-hour mode (dimmed neutral ink instead).
-    var secondaryPeriod: ClockModel.Period? = nil
+    let secondaryPeriod: ClockModel.Period?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

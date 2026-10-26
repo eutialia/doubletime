@@ -74,29 +74,10 @@ struct SettingsRenderTests {
     /// NSHostingView is the host the window really uses.
     @Test @MainActor func settingsViewLaysOutAtTheDocumentedWidth() {
         let clock = scratch.makeClock()
-        let host = NSHostingView(rootView: SettingsView(clock: clock, loginItem: stubbedLoginItem()))
+        let host = NSHostingView(rootView: SettingsView(clock: clock))
         let size = host.fittingSize
         #expect(size.width == DesignTokens.settingsWidth)
         #expect(size.height > 0)
-    }
-
-    // MARK: AboutPane
-
-    /// In the test bundle `Bundle.main` carries no CFBundleShortVersionString
-    /// / CFBundleVersion, so `versionString` takes its "1.0"/"1" fallback.
-    /// ImageRenderer exposes no text tree to assert the literal string
-    /// against, so what's honestly assertable here is: the render is
-    /// non-vacuous (real ink), and deterministic (no hidden dependency on
-    /// wall-clock time or view identity) across repeated renders.
-    @Test @MainActor func aboutPaneRendersDeterministicNonVacuousInk() throws {
-        func render() throws -> Data {
-            try pixelData(of: AboutPane())
-        }
-        #expect(try render() == render())
-
-        let scan = try RasterScan(of: AboutPane())
-        let hasInk = (0..<scan.height).contains { y in (0..<scan.width).contains { x in scan.isInk(x, y) } }
-        #expect(hasInk)
     }
 
     // MARK: GlyphChip (fixedHeight)

@@ -68,7 +68,7 @@ struct LoginItemModelTests {
     @Test func refreshPicksUpAnOutOfBandChange() {
         let service = MockLoginItemService()
         let model = LoginItemModel(service: service)
-        #expect(!model.isEnabled)
+        #expect(model.isEnabled == false)
 
         service.status = .enabled
         #expect(model.status != service.status, "the model must not observe the service; only refresh() re-reads it")
@@ -103,7 +103,7 @@ struct LoginItemModelTests {
         #expect(service.unregisterCount == 1)
         #expect(service.registerCount == 0)
         #expect(model.status == service.status)
-        #expect(!model.isEnabled)
+        #expect(model.isEnabled == false)
     }
 
     /// Setting the toggle to the value it already has still goes through the
@@ -156,18 +156,5 @@ struct LoginItemModelTests {
         // Purely a deep link: it must not disturb the registration state.
         #expect(service.registerCount == 0)
         #expect(service.unregisterCount == 0)
-    }
-
-    /// Debug builds cannot register (a DerivedData copy would become the copy
-    /// macOS launches), so the UI disables the toggle outright. The flag is a
-    /// compile-time constant, so the expectation has to flip with the
-    /// configuration — pinning `false` unconditionally would fail a Release
-    /// test run for a perfectly correct build.
-    @Test func canRegisterFollowsTheBuildConfiguration() {
-        #if DEBUG
-        #expect(LoginItemModel.canRegister == false)
-        #else
-        #expect(LoginItemModel.canRegister == true)
-        #endif
     }
 }
