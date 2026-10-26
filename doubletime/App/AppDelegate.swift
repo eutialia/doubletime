@@ -3,6 +3,7 @@
 //  doubletime
 //
 
+import AppIntents
 import AppKit
 import SwiftUI
 
@@ -19,6 +20,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Gates the hover flag while the item's menu is up (see the tracker
     /// closure): tracking events must not resurface the swap behind the menu.
     private var menuIsOpen = false
+
+    /// The intents' `@Dependency var clock` resolves from this registration.
+    /// It happens at init, the earliest point the instance exists, because
+    /// AppIntents gives no ordering guarantee against the launch callbacks
+    /// when Siri or Shortcuts is what launched the app.
+    override init() {
+        super.init()
+        AppDependencyManager.shared.add { [clock = self.clock] in clock }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The status bar never derives an item's length from SwiftUI content
