@@ -26,4 +26,4 @@ The name and the itch both come from [One Clock](https://elaworkshop.github.io/o
 
 ## Building
 
-Open `doubletime.xcodeproj`, set your signing team, and run. Targets macOS 26.4; SwiftUI, no dependencies.
+Open `doubletime.xcodeproj`, set your signing team, and run. Targets macOS 26.0; SwiftUI, no dependencies.
