@@ -8,8 +8,7 @@ import SwiftUI
 /// The "About" tab: app name, version, and license.
 ///
 /// The design's glyph showcase above the name and the source link are
-/// intentionally not implemented yet (showcase design undecided, repository
-/// unpublished); the blurb was dropped on purpose.
+/// intentionally not implemented yet; the blurb was dropped on purpose.
 struct AboutPane: View {
     private var versionString: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
@@ -28,7 +27,7 @@ struct AboutPane: View {
                 .foregroundStyle(DesignTokens.textMuted)
                 .padding(.top, 4)
 
-            Text("© 2026 eutialia · PolyForm Noncommercial 1.0.0")
+            Text("© 2026 eutialia · GPL-3.0-or-later")
                 .font(DesignTokens.settingsCaption)
                 .foregroundStyle(DesignTokens.textFaint)
                 .padding(.top, 18)

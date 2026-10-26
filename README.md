@@ -27,3 +27,11 @@ The name and the itch both come from [One Clock](https://elaworkshop.github.io/o
 ## Building
 
 Open `doubletime.xcodeproj`, set your signing team, and run. Targets macOS 26.0; SwiftUI, no dependencies.
+
+## License
+
+Copyright © 2026 eutialia. Licensed under the [GNU General Public License v3.0 or later](LICENSE).
+
+As an additional permission under section 7 of the GPL, you may distribute this program, or a work based on it, through an app store under that store's terms of service, even where those terms add restrictions the GPL would otherwise forbid, provided the Corresponding Source remains available under the GPL.
+
+The Doubletime name and app icon are not covered by this license. Forks that ship must use their own.
