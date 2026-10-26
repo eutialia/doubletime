@@ -22,8 +22,11 @@ struct doubletimeApp: App {
 
         Window("Welcome to Doubletime", id: "onboarding") {
             OnboardingView(clock: appDelegate.clock, loginItem: appDelegate.loginItem)
+                .windowDismissBehavior(.disabled)
+                .windowMinimizeBehavior(.disabled)
                 .onDisappear { onboardingCompleted = true }
         }
+        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .restorationBehavior(.disabled)
         .defaultLaunchBehavior(onboardingCompleted ? .suppressed : .presented)
