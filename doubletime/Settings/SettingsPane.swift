@@ -3,8 +3,6 @@
 //  doubletime
 //
 
-import AppKit
-import ServiceManagement
 import SwiftUI
 
 /// The "Settings" tab: immediate-apply rows for the two zones, time format,
@@ -13,35 +11,20 @@ import SwiftUI
 /// is the live preview.
 struct SettingsPane: View {
     @Bindable var clock: ClockModel
-    @State private var loginItem: LoginItemModel
+    /// Injectable so tests can drive the pane off a stubbed `LoginItemService`
+    /// instead of `SMAppService.mainApp` — without it the pane's geometry (the
+    /// extra `.requiresApproval` row) would depend on the developer's real
+    /// Login Items. Production passes nothing and gets the real model.
+    private let loginItem: LoginItemModel?
 
-    /// `loginItem` is injectable so tests can drive the pane off a stubbed
-    /// `LoginItemService` instead of `SMAppService.mainApp` — without it the
-    /// pane's geometry (the extra `.requiresApproval` row) would depend on the
-    /// developer's real Login Items. Production passes nothing and gets the
-    /// real model. (`nil` rather than a `LoginItemModel()` default argument:
-    /// under the Swift 5 language mode a default expression is evaluated in the
-    /// caller's isolation, where a main-actor initializer is unreachable.)
     @MainActor init(clock: ClockModel, loginItem: LoginItemModel? = nil) {
         _clock = Bindable(wrappedValue: clock)
-        _loginItem = State(initialValue: loginItem ?? LoginItemModel())
+        self.loginItem = loginItem
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsRow(
-                label: "Primary city",
-                caption: "Your home zone. It gets the brighter cell, and the trailing :mm always shows its minute."
-            ) {
-                ZoneRowControl(clock: clock, isPrimary: true)
-            }
-
-            SettingsRow(
-                label: "Secondary city",
-                caption: "The foreign zone. It gets the dimmer leading cell."
-            ) {
-                ZoneRowControl(clock: clock, isPrimary: false)
-            }
+            ZoneRows(clock: clock)
 
             SettingsDivider()
 
@@ -98,42 +81,10 @@ struct SettingsPane: View {
 
             SettingsDivider()
 
-            SettingsRow(
-                label: "Launch at login",
-                caption: "macOS puts the clock back in the menu bar after a restart. You can also manage this in System Settings under Login Items."
-            ) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Launch at login", isOn: $loginItem.isEnabled)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .disabled(!LoginItemModel.canRegister)
-
-                    if loginItem.status == .requiresApproval {
-                        HStack(spacing: 8) {
-                            Text("Switched off in the system's Login Items.")
-                                .font(DesignTokens.settingsCaption)
-                                .foregroundStyle(DesignTokens.textMuted)
-                            Button("Open Login Items…") {
-                                loginItem.openSystemSettings()
-                            }
-                            .controlSize(.small)
-                        }
-                    }
-
-                    if !LoginItemModel.canRegister {
-                        Text("Unavailable in debug builds.")
-                            .font(DesignTokens.settingsFootnote)
-                            .foregroundStyle(DesignTokens.textFaint)
-                    }
-                }
-            }
+            LaunchAtLoginRow(loginItem: loginItem)
         }
         .padding(EdgeInsets(top: 8, leading: 28, bottom: 22, trailing: 28))
         .frame(width: DesignTokens.settingsWidth, alignment: .leading)
         .background(DesignTokens.canvas)
-        .onAppear { loginItem.refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            loginItem.refresh()
-        }
     }
 }
