@@ -9,7 +9,7 @@ import Foundation
 /// searched and sorted by, precomputed once. `nonisolated` — a pure value type
 /// and an immutable table, so the search logic over it can run (and be tested)
 /// off the main actor, like ClockModel's pure statics.
-nonisolated struct TimezoneOption: Identifiable, Hashable {
+nonisolated struct TimezoneOption: Identifiable, Hashable, Sendable {
     let id: String
     let city: String
     let abbreviation: String
@@ -27,4 +27,11 @@ nonisolated struct TimezoneOption: Identifiable, Hashable {
         }
         .sorted { $0.city.localizedCaseInsensitiveCompare($1.city) == .orderedAscending }
     }()
+
+    /// The row for an IANA id, if this Mac's table lists it. Stricter than
+    /// `TimeZone(identifier:)`: tzdata accepts aliases the table omits, such as
+    /// "Asia/Kolkata" next to the listed "Asia/Calcutta".
+    static func option(id: String) -> TimezoneOption? {
+        all.first { $0.id == id }
+    }
 }
