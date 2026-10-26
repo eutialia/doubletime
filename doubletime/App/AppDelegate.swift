@@ -81,6 +81,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = statusMenu.menu
     }
 
+    /// The onboarding `Window` scene makes SwiftUI treat this as a single-window
+    /// app, which quits when that window closes and takes the clock with it.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
     private func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .openAppSettings, object: nil)
