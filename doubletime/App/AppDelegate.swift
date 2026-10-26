@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let statusItemPadding: CGFloat = 4
 
     let clock = ClockModel()
+    let loginItem = LoginItemModel()
     private var statusItem: NSStatusItem?
     private var hostingView: NSHostingView<StatusBarView>!
     private var hoverTracker: StatusItemHoverTracker?
@@ -79,6 +80,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         self.statusMenu = statusMenu
         statusItem.menu = statusMenu.menu
+    }
+
+    /// The user can flip the login item in System Settings while the app runs.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        loginItem.refresh()
+    }
+
+    /// The onboarding `Window` scene makes SwiftUI treat this as a single-window
+    /// app, which quits when that window closes and takes the clock with it.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     private func openSettings() {
